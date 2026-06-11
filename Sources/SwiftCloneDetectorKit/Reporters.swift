@@ -1,15 +1,16 @@
 //
 //  Reporters.swift
-//  swift-clone-detector
+//  SwiftCloneDetectorKit
 //
 //  Machine-readable output: the detector's own JSON schema and SARIF 2.1.0. The
-//  console reporter lives in CommandLineSupport; this builds the structured
-//  formats. All output is encoded with sorted keys so it is byte-stable from one
-//  CI run to the next.
+//  console reporter lives in the executable; this builds the structured formats
+//  and lives in the kit so it is unit-testable. All output is encoded with
+//  sorted keys so it is byte-stable from one CI run to the next. The entry
+//  points are `package` — usable by the executable and tests, but not part of
+//  the library's public API.
 //
 
 import Foundation
-import SwiftCloneDetectorKit
 
 /// Key under `partialFingerprints` so GitHub can track a clone across runs.
 private let kFingerprintKey = "swiftCloneDetector/v1"
@@ -21,7 +22,7 @@ private let kSarifSchema = "https://raw.githubusercontent.com/oasis-tcs/sarif-sp
 
 /// A pretty-printing, key-sorting JSON encoder — shared with baseline writing so
 /// every file this tool emits is reproducible.
-func makeEncoder() -> JSONEncoder {
+package func makeEncoder() -> JSONEncoder {
     let encoder = JSONEncoder()
     encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
     return encoder
@@ -102,7 +103,8 @@ private func jsonCrossClone(_ clone: CrossProjectClone) -> CloneReportJSON.Cross
     )
 }
 
-func jsonReport(_ classes: [CloneClass], fileCount: Int, nearMiss: Bool) -> String {
+/// Render clone classes as the detector's compact JSON schema.
+package func jsonReport(_ classes: [CloneClass], fileCount: Int, nearMiss: Bool) -> String {
     let report = CloneReportJSON.Report(
         tool: ToolInfo.name,
         version: ToolInfo.version,
@@ -115,7 +117,8 @@ func jsonReport(_ classes: [CloneClass], fileCount: Int, nearMiss: Bool) -> Stri
     return encodeToString(report)
 }
 
-func jsonReportCrossProject(_ clones: [CrossProjectClone], fileCount: Int) -> String {
+/// Render cross-project clones as the detector's compact JSON schema.
+package func jsonReportCrossProject(_ clones: [CrossProjectClone], fileCount: Int) -> String {
     let report = CloneReportJSON.CrossReport(
         tool: ToolInfo.name,
         version: ToolInfo.version,
@@ -154,7 +157,8 @@ private func sarifDocument(findings: [SARIF.Finding], rules: [SARIFRule]) -> Str
     return encodeToString(log)
 }
 
-func sarifReport(_ classes: [CloneClass], nearMiss: Bool) -> String {
+/// Render clone classes as a SARIF 2.1.0 log.
+package func sarifReport(_ classes: [CloneClass], nearMiss: Bool) -> String {
     let ruleID = nearMiss ? "type3-near-miss-clone" : "type1-2-clone"
     let ruleName = nearMiss ? "Type-3 near-miss clone" : "Type-1/2 clone"
     let rule = SARIFRule(
@@ -177,7 +181,8 @@ func sarifReport(_ classes: [CloneClass], nearMiss: Bool) -> String {
     return sarifDocument(findings: findings, rules: [rule])
 }
 
-func sarifReportCrossProject(_ clones: [CrossProjectClone]) -> String {
+/// Render cross-project clones as a SARIF 2.1.0 log.
+package func sarifReportCrossProject(_ clones: [CrossProjectClone]) -> String {
     let rules = [
         SARIFRule(
             identifier: crossKindID(.hoistCandidate),

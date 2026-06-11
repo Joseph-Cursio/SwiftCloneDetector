@@ -1,6 +1,6 @@
 //
 //  SARIFRule.swift
-//  swift-clone-detector
+//  SwiftCloneDetectorKit
 //
 //  A SARIF rule descriptor. Lives apart from SARIFModel because its `id` key
 //  needs a CodingKeys mapping (the Swift property is spelled out to satisfy the

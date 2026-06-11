@@ -1,6 +1,6 @@
 //
 //  SARIFLog.swift
-//  swift-clone-detector
+//  SwiftCloneDetectorKit
 //
 //  The root SARIF document. Lives apart from SARIFModel because its `$schema`
 //  key needs a CodingKeys mapping.

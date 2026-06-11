@@ -64,11 +64,18 @@ missed (people copy a *block*, not a whole function).
 to `rm`. Worth checking *what's* generating them, though; that's a lot of
 snapshots.
 
-### 8. Output-format snapshot tests
+### 8. Output-format tests ✅ (JSON/SARIF)
 
-The three test files cover the finders well, but `report()` /
-`reportCrossProject()` formatting is untested — and that's exactly the surface
-that'll regress when adding `--json`/SARIF.
+The JSON and SARIF reporters moved into the kit (as `package`, so they stay out
+of the library's public API) and gained round-trip tests: emit from known clone
+classes, parse the output back, and assert structure, fingerprints and
+byte-stability. Coverage of `Reporters.swift` went from untested (0%) to ~99%;
+kit line coverage is ~98%.
+
+Still untested (executable target, not linked by the test target): the
+`CloneDetectorCommand` argument parsing/orchestration, `BaselineFile` disk I/O,
+and the console `report()`/`reportCrossProject()`. The parser is now testable
+in-process via `CloneDetectorCommand.parse([...])` — a natural next step.
 
 ## Recommendation
 

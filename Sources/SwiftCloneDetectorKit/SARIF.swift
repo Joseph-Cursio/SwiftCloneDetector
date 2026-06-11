@@ -1,13 +1,11 @@
 //
 //  SARIF.swift
-//  swift-clone-detector
+//  SwiftCloneDetectorKit
 //
 //  The SARIF 2.1.0 object model, minus the two types that need custom JSON keys
 //  (SARIFRule's `id` and SARIFLog's `$schema`, which live in their own files).
 //  Namespaced under `SARIF` so the whole schema reads as one unit.
 //
-
-import SwiftCloneDetectorKit
 
 /// Namespace for the SARIF 2.1.0 result-format types the reporter emits.
 enum SARIF {

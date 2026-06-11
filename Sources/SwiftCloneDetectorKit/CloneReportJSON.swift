@@ -1,13 +1,11 @@
 //
 //  CloneReportJSON.swift
-//  swift-clone-detector
+//  SwiftCloneDetectorKit
 //
 //  The detector's own compact JSON schema (`--format json`), namespaced under
 //  CloneReportJSON. Distinct clone types for the normal and cross-project runs
 //  keep every field non-optional and the output self-describing.
 //
-
-import SwiftCloneDetectorKit
 
 /// Namespace for the detector's own JSON output schema.
 enum CloneReportJSON {
