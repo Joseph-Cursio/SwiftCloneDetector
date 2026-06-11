@@ -136,6 +136,29 @@ struct CloneFinderTests {
         #expect(classes.contains { $0.instances.count >= 2 })
     }
 
+    @Test("min-distinct-identifiers drops fragments with little unique naming")
+    func minDistinctIdentifiersFloor() {
+        // A real clone, but only two distinct identifiers (run, step) across a lot
+        // of repeated structure. A floor of three drops it; the default keeps it.
+        let body = """
+        func run() {
+            step()
+            step()
+            step()
+            step()
+            step()
+            step()
+        }
+        """
+        let inputs = [source("a.swift", body), source("b.swift", body)]
+
+        let kept = CloneFinder(normalization: .type2, minMass: 10).find(in: inputs)
+        #expect(kept.contains { $0.instances.count == 2 })
+
+        let dropped = CloneFinder(normalization: .type2, minMass: 10, minDistinctIdentifiers: 3).find(in: inputs)
+        #expect(dropped.isEmpty)
+    }
+
     @Test("reports the enclosing clone once, not every nested sub-clone")
     func subsumption() {
         let body = """

@@ -24,10 +24,15 @@ public struct CloneFinder {
     /// Minimum subtree size (in AST nodes) to consider. Filters out trivial
     /// fragments that would otherwise be reported as noise.
     public let minMass: Int
+    /// Minimum count of distinct identifier tokens a fragment must carry to be
+    /// considered. Drops large-but-repetitive structure (a long switch, a builder
+    /// chain) that passes `minMass` yet has little unique naming. 0 disables it.
+    public let minDistinctIdentifiers: Int
 
-    public init(normalization: Normalization = .type2, minMass: Int = 20) {
+    public init(normalization: Normalization = .type2, minMass: Int = 20, minDistinctIdentifiers: Int = 0) {
         self.normalization = normalization
         self.minMass = minMass
+        self.minDistinctIdentifiers = minDistinctIdentifiers
     }
 
     // A significant subtree recorded during the walk.
@@ -95,7 +100,7 @@ public struct CloneFinder {
                 mass += result.mass
             }
 
-            if mass >= minMass, anchorKinds.contains(node.kind) {
+            if mass >= minMass, anchorKinds.contains(node.kind), passesIdentifierFloor(node) {
                 fragments.append(Fragment(
                     fileIndex: fileIndex,
                     node: node,
@@ -108,6 +113,12 @@ public struct CloneFinder {
             return (hasher.value, mass)
         }
         walk(root)
+    }
+
+    // Whether a fragment carries enough distinct naming to clear the floor. The
+    // count walk only runs when the floor is enabled.
+    private func passesIdentifierFloor(_ node: Syntax) -> Bool {
+        minDistinctIdentifiers == 0 || distinctIdentifierCount(in: node) >= minDistinctIdentifiers
     }
 
     // A full structural signature used to confirm a bucket is a true match.

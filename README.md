@@ -58,6 +58,12 @@ swift run swift-clone-detector --type3 --min-mass 90 --similarity 0.88 /path/to/
 `--min-mass` is the precision dial (higher = fewer, larger clones). Exit code is
 `2` when clones are found (handy for CI gating), `0` when clean.
 
+`--min-distinct-identifiers N` is a second, orthogonal precision dial: it drops
+fragments carrying fewer than `N` distinct identifier tokens. Where `--min-mass`
+filters by *size*, this filters by *unique naming* — useful against
+large-but-repetitive structure (a long `switch`, a chained builder) that clears
+the size floor while being semantically thin. Off by default (`0`).
+
 ### Cross-project mode
 
 When several apps depend on a shared library, the question isn't "is there

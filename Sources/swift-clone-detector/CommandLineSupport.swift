@@ -21,6 +21,9 @@ OPTIONS:
   --type3, --near    near-miss clones (inserted/removed/changed statements)
   --similarity N     near-miss threshold in [0, 1] (default: 0.85)
   --min-mass N       minimum subtree size in AST nodes (default: 20)
+  --min-distinct-identifiers N
+                     drop fragments with fewer than N distinct identifier tokens
+                     — filters large-but-repetitive structure (default: 0, off)
   --cross-project    only report clones spanning two or more project roots
   --shared PATH      mark a project root as the shared package (repeatable)
   -h, --help         show this help

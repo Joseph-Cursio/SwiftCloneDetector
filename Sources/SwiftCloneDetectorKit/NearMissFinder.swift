@@ -21,10 +21,15 @@ public struct NearMissFinder {
     /// Sørensen–Dice similarity threshold in [0, 1] for two subtrees to be
     /// considered near-miss clones.
     public let similarityThreshold: Double
+    /// Minimum count of distinct identifier tokens a fragment must carry to be
+    /// considered. Drops large-but-repetitive structure with little unique
+    /// naming. 0 disables it.
+    public let minDistinctIdentifiers: Int
 
-    public init(minMass: Int = 30, similarityThreshold: Double = 0.85) {
+    public init(minMass: Int = 30, similarityThreshold: Double = 0.85, minDistinctIdentifiers: Int = 0) {
         self.minMass = minMass
         self.similarityThreshold = similarityThreshold
+        self.minDistinctIdentifiers = minDistinctIdentifiers
     }
 
     // Type-3 distinguishes structure, not token text, so signatures normalize
@@ -74,7 +79,8 @@ public struct NearMissFinder {
                 mass += result.mass
             }
 
-            if mass >= minMass, anchorKinds.contains(node.kind) {
+            if mass >= minMass, anchorKinds.contains(node.kind),
+               minDistinctIdentifiers == 0 || distinctIdentifierCount(in: node) >= minDistinctIdentifiers {
                 fragments.append(Fragment(
                     fileIndex: fileIndex,
                     node: node,

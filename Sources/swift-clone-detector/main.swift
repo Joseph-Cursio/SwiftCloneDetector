@@ -9,6 +9,7 @@ import Foundation
 import SwiftCloneDetectorKit
 
 var minMass = 20
+var minDistinctIdentifiers = 0
 var normalization = Normalization.type2
 var nearMiss = false
 var similarityThreshold = 0.85
@@ -25,6 +26,12 @@ while index < arguments.count {
         index += 1
         if index < arguments.count, let value = Int(arguments[index]) {
             minMass = value
+        }
+
+    case "--min-distinct-identifiers":
+        index += 1
+        if index < arguments.count, let value = Int(arguments[index]) {
+            minDistinctIdentifiers = value
         }
 
     case "--similarity":
@@ -64,9 +71,17 @@ while index < arguments.count {
 @MainActor
 func findClones(in sources: [SourceInput]) -> [CloneClass] {
     if nearMiss {
-        return NearMissFinder(minMass: minMass, similarityThreshold: similarityThreshold).find(in: sources)
+        return NearMissFinder(
+            minMass: minMass,
+            similarityThreshold: similarityThreshold,
+            minDistinctIdentifiers: minDistinctIdentifiers
+        ).find(in: sources)
     }
-    return CloneFinder(normalization: normalization, minMass: minMass).find(in: sources)
+    return CloneFinder(
+        normalization: normalization,
+        minMass: minMass,
+        minDistinctIdentifiers: minDistinctIdentifiers
+    ).find(in: sources)
 }
 
 if crossProject {
