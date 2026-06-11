@@ -8,3 +8,6 @@ DerivedData/
 .swiftpm/
 Packages/
 .netrc
+
+# SwiftLint config snapshots
+*.backup
