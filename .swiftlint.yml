@@ -1,0 +1,6 @@
+# SwiftLint configuration for SwiftCloneDetector.
+# Keep linting scoped to first-party sources — never descend into the
+# SwiftSyntax dependency checkouts under .build.
+excluded:
+  - .build
+  - .swiftpm
