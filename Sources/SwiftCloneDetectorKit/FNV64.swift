@@ -8,8 +8,14 @@
 //
 
 struct FNV64 {
-    private(set) var value: UInt64 = 0xcbf2_9ce4_8422_2325
+    private static let offsetBasis: UInt64 = 0xcbf2_9ce4_8422_2325
     private static let prime: UInt64 = 0x0000_0100_0000_01b3
+    /// Bytes in a `UInt64` — the number of low-byte rounds when folding one in.
+    private static let byteCount = 8
+    private static let bitsPerByte = 8
+    private static let lowByteMask: UInt64 = 0xff
+
+    private(set) var value = Self.offsetBasis
 
     mutating func combine(_ string: String) {
         for byte in string.utf8 {
@@ -19,9 +25,9 @@ struct FNV64 {
 
     mutating func combine(_ other: UInt64) {
         var bits = other
-        for _ in 0..<8 {
-            value = (value ^ (bits & 0xff)) &* Self.prime
-            bits >>= 8
+        for _ in 0..<Self.byteCount {
+            value = (value ^ (bits & Self.lowByteMask)) &* Self.prime
+            bits >>= Self.bitsPerByte
         }
     }
 }

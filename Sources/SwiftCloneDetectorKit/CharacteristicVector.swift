@@ -11,6 +11,9 @@
 import SwiftSyntax
 
 struct CharacteristicVector {
+    // Sørensen–Dice weights the shared elements by two: 2·|A ∩ B| / (|A| + |B|).
+    private static let diceOverlapFactor = 2.0
+
     private(set) var counts: [SyntaxKind: Int] = [:]
     /// Number of (composite) nodes counted — the vector's L1 magnitude.
     private(set) var total = 0
@@ -20,7 +23,7 @@ struct CharacteristicVector {
         total += 1
     }
 
-    mutating func merge(_ other: CharacteristicVector) {
+    mutating func merge(_ other: Self) {
         for (kind, count) in other.counts {
             counts[kind, default: 0] += count
         }
@@ -30,8 +33,10 @@ struct CharacteristicVector {
     /// Sørensen–Dice similarity over the two multisets, in [0, 1]. 1.0 means an
     /// identical kind distribution; a handful of inserted/removed nodes drops it
     /// only a little, which is exactly the Type-3 signal.
-    func similarity(to other: CharacteristicVector) -> Double {
-        guard total > 0, other.total > 0 else { return 0 }
+    func similarity(to other: Self) -> Double {
+        guard total > 0, other.total > 0 else {
+            return 0
+        }
 
         // Walk the smaller map and intersect against the larger.
         let (smaller, larger) = counts.count <= other.counts.count
@@ -44,6 +49,6 @@ struct CharacteristicVector {
                 intersection += min(count, otherCount)
             }
         }
-        return 2.0 * Double(intersection) / Double(total + other.total)
+        return Self.diceOverlapFactor * Double(intersection) / Double(total + other.total)
     }
 }

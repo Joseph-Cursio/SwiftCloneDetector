@@ -79,7 +79,8 @@ func loadSwiftFiles(paths: [String]) -> [SourceInput] {
             while let item = enumerator?.nextObject() as? String {
                 guard item.hasSuffix(".swift") else { continue }
                 if isInBuildArtifact(item) { continue }
-                swiftFilePaths.append((path as NSString).appendingPathComponent(item))
+                let separator = path.hasSuffix("/") ? "" : "/"
+                swiftFilePaths.append(path + separator + item)
             }
         } else if path.hasSuffix(".swift") {
             swiftFilePaths.append(path)
@@ -87,7 +88,9 @@ func loadSwiftFiles(paths: [String]) -> [SourceInput] {
     }
 
     return swiftFilePaths.compactMap { path in
-        guard let text = try? String(contentsOfFile: path, encoding: .utf8) else { return nil }
+        guard let text = try? String(contentsOfFile: path, encoding: .utf8) else {
+            return nil
+        }
         return SourceInput(path: path, text: text)
     }
 }

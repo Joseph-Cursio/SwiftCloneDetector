@@ -6,12 +6,11 @@
 //  duplicated-from-shared classification.
 //
 
-import Testing
 @testable import SwiftCloneDetectorKit
+import Testing
 
 @Suite("CrossProjectAnalyzer")
 struct CrossProjectAnalyzerTests {
-
     private let roots = [
         ProjectRoot(name: "LintStudioUI", path: "/work/LintStudioUI", isShared: true),
         ProjectRoot(name: "SwiftLintRuleStudio", path: "/work/SwiftLintRuleStudio"),
@@ -20,8 +19,8 @@ struct CrossProjectAnalyzerTests {
     ]
 
     private func cloneClass(_ paths: [String]) -> CloneClass {
-        let instances = paths.map {
-            CloneInstance(path: $0, startLine: 1, startColumn: 1, endLine: 10, endColumn: 1)
+        let instances = paths.map { path in
+            CloneInstance(path: path, startLine: 1, startColumn: 1, endLine: 10, endColumn: 1)
         }
         return CloneClass(mass: 40, instances: instances)
     }
@@ -46,10 +45,12 @@ struct CrossProjectAnalyzerTests {
     @Test("flags code duplicated across two consumers as a hoist candidate")
     func hoistCandidateAcrossConsumers() {
         let analyzer = CrossProjectAnalyzer(roots: roots)
-        let classes = [cloneClass([
-            "/work/SwiftLintRuleStudio/Sources/Badge.swift",
-            "/work/SwiftProjectLint/Sources/Badge.swift"
-        ])]
+        let classes = [
+            cloneClass([
+                "/work/SwiftLintRuleStudio/Sources/Badge.swift",
+                "/work/SwiftProjectLint/Sources/Badge.swift"
+            ])
+        ]
         let cross = analyzer.analyze(classes)
         #expect(cross.count == 1)
         #expect(cross.first?.kind == .hoistCandidate)
@@ -59,10 +60,12 @@ struct CrossProjectAnalyzerTests {
     @Test("flags a consumer copy of shared code as duplicated-from-shared")
     func duplicatedFromShared() {
         let analyzer = CrossProjectAnalyzer(roots: roots)
-        let classes = [cloneClass([
-            "/work/LintStudioUI/Sources/Badge.swift",
-            "/work/SwiftFormatLint/Sources/Badge.swift"
-        ])]
+        let classes = [
+            cloneClass([
+                "/work/LintStudioUI/Sources/Badge.swift",
+                "/work/SwiftFormatLint/Sources/Badge.swift"
+            ])
+        ]
         let cross = analyzer.analyze(classes)
         #expect(cross.first?.kind == .duplicatedFromShared)
     }
@@ -70,11 +73,13 @@ struct CrossProjectAnalyzerTests {
     @Test("shared involvement wins even when several consumers also copied it")
     func sharedWinsOverMultipleConsumers() {
         let analyzer = CrossProjectAnalyzer(roots: roots)
-        let classes = [cloneClass([
-            "/work/LintStudioUI/Sources/Badge.swift",
-            "/work/SwiftProjectLint/Sources/Badge.swift",
-            "/work/SwiftFormatLint/Sources/Badge.swift"
-        ])]
+        let classes = [
+            cloneClass([
+                "/work/LintStudioUI/Sources/Badge.swift",
+                "/work/SwiftProjectLint/Sources/Badge.swift",
+                "/work/SwiftFormatLint/Sources/Badge.swift"
+            ])
+        ]
         let cross = analyzer.analyze(classes)
         #expect(cross.first?.kind == .duplicatedFromShared)
         #expect(cross.first?.projects.count == 3)
@@ -83,10 +88,12 @@ struct CrossProjectAnalyzerTests {
     @Test("drops duplication confined to a single project")
     func dropsIntraProjectDuplication() {
         let analyzer = CrossProjectAnalyzer(roots: roots)
-        let classes = [cloneClass([
-            "/work/SwiftProjectLint/Sources/A.swift",
-            "/work/SwiftProjectLint/Sources/B.swift"
-        ])]
+        let classes = [
+            cloneClass([
+                "/work/SwiftProjectLint/Sources/A.swift",
+                "/work/SwiftProjectLint/Sources/B.swift"
+            ])
+        ]
         #expect(analyzer.analyze(classes).isEmpty)
     }
 
@@ -94,10 +101,12 @@ struct CrossProjectAnalyzerTests {
     func ignoresUnknownFiles() {
         let analyzer = CrossProjectAnalyzer(roots: roots)
         // One known consumer + one stray file: only one project, so not cross-project.
-        let classes = [cloneClass([
-            "/work/SwiftProjectLint/Sources/A.swift",
-            "/tmp/scratch/A.swift"
-        ])]
+        let classes = [
+            cloneClass([
+                "/work/SwiftProjectLint/Sources/A.swift",
+                "/tmp/scratch/A.swift"
+            ])
+        ]
         #expect(analyzer.analyze(classes).isEmpty)
     }
 }

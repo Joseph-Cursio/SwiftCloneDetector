@@ -7,16 +7,11 @@
 //  unrelated code should stay apart.
 //
 
-import Testing
 @testable import SwiftCloneDetectorKit
+import Testing
 
 @Suite("NearMissFinder")
 struct NearMissFinderTests {
-
-    private func source(_ path: String, _ text: String) -> SourceInput {
-        SourceInput(path: path, text: text)
-    }
-
     // Same shape, with an extra `if` inserted in the variant — the canonical
     // Type-3 case an exact hash would miss.
     private let base = """
@@ -39,6 +34,10 @@ struct NearMissFinderTests {
         return total
     }
     """
+
+    private func source(_ path: String, _ text: String) -> SourceInput {
+        SourceInput(path: path, text: text)
+    }
 
     @Test("clusters a near-miss copy that drifted by one inserted statement")
     func detectsNearMiss() {

@@ -9,19 +9,22 @@
 
 import SwiftSyntax
 
-let anchorKinds: Set<SyntaxKind> = [
-    .codeBlockItem,
-    .memberBlockItem,
-    .functionDecl,
-    .initializerDecl,
-    .subscriptDecl,
-    .accessorDecl,
-    .variableDecl,
-    .closureExpr,
-    .ifExpr,
-    .guardStmt,
-    .forStmt,
-    .whileStmt,
-    .switchExpr,
-    .switchCase
-]
+/// Subtree-root kinds the finders treat as reportable clone boundaries.
+enum AnchorKinds {
+    static let all: Set<SyntaxKind> = [
+        .codeBlockItem,
+        .memberBlockItem,
+        .functionDecl,
+        .initializerDecl,
+        .subscriptDecl,
+        .accessorDecl,
+        .variableDecl,
+        .closureExpr,
+        .ifExpr,
+        .guardStmt,
+        .forStmt,
+        .whileStmt,
+        .switchExpr,
+        .switchCase
+    ]
+}

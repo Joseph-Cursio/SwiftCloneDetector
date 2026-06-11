@@ -5,12 +5,11 @@
 //  Covers the Type-1/2 distinction, the min-mass floor, and subsumption.
 //
 
-import Testing
 @testable import SwiftCloneDetectorKit
+import Testing
 
 @Suite("CloneFinder")
 struct CloneFinderTests {
-
     private func source(_ path: String, _ text: String) -> SourceInput {
         SourceInput(path: path, text: text)
     }

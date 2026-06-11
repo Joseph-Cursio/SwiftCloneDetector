@@ -12,30 +12,12 @@
 //  only the *near*, not the identical.
 //
 
-import SwiftSyntax
 import SwiftParser
+import SwiftSyntax
 
+/// The Type-3 near-miss clone detector: copies that drifted by a few inserted,
+/// removed, or changed statements, clustered by characteristic-vector similarity.
 public struct NearMissFinder {
-    /// Minimum subtree size (in AST nodes) to consider.
-    public let minMass: Int
-    /// Sørensen–Dice similarity threshold in [0, 1] for two subtrees to be
-    /// considered near-miss clones.
-    public let similarityThreshold: Double
-    /// Minimum count of distinct identifier tokens a fragment must carry to be
-    /// considered. Drops large-but-repetitive structure with little unique
-    /// naming. 0 disables it.
-    public let minDistinctIdentifiers: Int
-
-    public init(minMass: Int = 30, similarityThreshold: Double = 0.85, minDistinctIdentifiers: Int = 0) {
-        self.minMass = minMass
-        self.similarityThreshold = similarityThreshold
-        self.minDistinctIdentifiers = minDistinctIdentifiers
-    }
-
-    // Type-3 distinguishes structure, not token text, so signatures normalize
-    // identifiers/literals away — the same basis the Type-2 pass uses.
-    private let normalization = Normalization.type2
-
     private struct Fragment {
         let fileIndex: Int
         let node: Syntax
@@ -46,6 +28,36 @@ public struct NearMissFinder {
         let signature: String
     }
 
+    // A near-miss cluster needs at least this many members.
+    private static let minimumClusterSize = 2
+    // Sørensen–Dice's overlap factor, reused in the size-prune ratio t / (2 - t).
+    private static let diceOverlapFactor = 2.0
+
+    /// Minimum subtree size (in AST nodes) to consider.
+    public let minMass: Int
+    /// Sørensen–Dice similarity threshold in [0, 1] for two subtrees to be
+    /// considered near-miss clones.
+    public let similarityThreshold: Double
+    /// Minimum count of distinct identifier tokens a fragment must carry to be
+    /// considered. Drops large-but-repetitive structure with little unique
+    /// naming. 0 disables it.
+    public let minDistinctIdentifiers: Int
+
+    // Type-3 distinguishes structure, not token text, so signatures normalize
+    // identifiers/literals away — the same basis the Type-2 pass uses.
+    private let normalization = Normalization.type2
+
+    /// Create a finder. `minMass` is the smallest subtree (in AST nodes) worth
+    /// reporting; `similarityThreshold` is the Sørensen–Dice cutoff in [0, 1];
+    /// `minDistinctIdentifiers` is the distinct-naming floor (0 = off).
+    public init(minMass: Int = 30, similarityThreshold: Double = 0.85, minDistinctIdentifiers: Int = 0) {
+        self.minMass = minMass
+        self.similarityThreshold = similarityThreshold
+        self.minDistinctIdentifiers = minDistinctIdentifiers
+    }
+
+    /// Find all Type-3 near-miss clone classes across the given sources, largest
+    /// first and with nested sub-clones subsumed.
     public func find(in sources: [SourceInput]) -> [CloneClass] {
         var fragments: [Fragment] = []
         var converters: [SourceLocationConverter] = []
@@ -79,7 +91,7 @@ public struct NearMissFinder {
                 mass += result.mass
             }
 
-            if mass >= minMass, anchorKinds.contains(node.kind),
+            if mass >= minMass, AnchorKinds.all.contains(node.kind),
                minDistinctIdentifiers == 0 || distinctIdentifierCount(in: node) >= minDistinctIdentifiers {
                 fragments.append(Fragment(
                     fileIndex: fileIndex,
@@ -143,9 +155,9 @@ public struct NearMissFinder {
 
         // Size prune: for Dice ≥ t the smaller vector must be at least
         // t / (2 - t) of the larger, else the score can't reach the threshold.
-        let sizeRatio = similarityThreshold / (2 - similarityThreshold)
+        let sizeRatio = similarityThreshold / (Self.diceOverlapFactor - similarityThreshold)
 
-        for indices in byKind.values where indices.count >= 2 {
+        for indices in byKind.values where indices.count >= Self.minimumClusterSize {
             for outer in 0..<indices.count {
                 for inner in (outer + 1)..<indices.count {
                     let lhsIndex = indices[outer]
@@ -171,7 +183,7 @@ public struct NearMissFinder {
         for index in 0..<count {
             groups[find(index), default: []].append(index)
         }
-        return groups.values.filter { $0.count >= 2 }
+        return groups.values.filter { $0.count >= Self.minimumClusterSize }
     }
 
     // MARK: - Report + subsumption
@@ -191,7 +203,9 @@ public struct NearMissFinder {
         var result: [CloneClass] = []
 
         func isInsideClaimedRange(_ fragment: Fragment) -> Bool {
-            guard let ranges = claimed[fragment.fileIndex] else { return false }
+            guard let ranges = claimed[fragment.fileIndex] else {
+                return false
+            }
             return ranges.contains { fragment.startOffset >= $0.start && fragment.endOffset <= $0.end }
         }
 

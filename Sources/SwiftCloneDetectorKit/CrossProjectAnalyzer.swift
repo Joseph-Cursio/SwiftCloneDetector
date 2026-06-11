@@ -18,50 +18,22 @@
 //  project root that is a path-component prefix of its path.
 //
 
-/// One project in the multi-project set — a consumer app or the shared package.
-public struct ProjectRoot: Sendable, Equatable {
-    public let name: String
-    public let path: String
-    /// True for the shared package (e.g. LintStudioUI) that consumers depend on.
-    public let isShared: Bool
-
-    public init(name: String, path: String, isShared: Bool = false) {
-        self.name = name
-        self.path = path
-        self.isShared = isShared
-    }
-}
-
-/// Why a cross-project clone matters — and what to do about it.
-public enum CrossProjectKind: Sendable, Equatable {
-    /// Duplicated across two or more consumers, absent from the shared package.
-    /// Hoist it into the shared package and import it everywhere.
-    case hoistCandidate
-    /// Present in the shared package and re-copied into a consumer. Delete the
-    /// copy and import the shared package's version instead.
-    case duplicatedFromShared
-}
-
-/// A clone class whose instances span more than one project, annotated with the
-/// projects it touches and what to do about it.
-public struct CrossProjectClone: Sendable {
-    public let cloneClass: CloneClass
-    /// Distinct project names the clone spans, sorted.
-    public let projects: [String]
-    public let kind: CrossProjectKind
-
-    public init(cloneClass: CloneClass, projects: [String], kind: CrossProjectKind) {
-        self.cloneClass = cloneClass
-        self.projects = projects
-        self.kind = kind
-    }
-}
-
+/// Filters and classifies clone classes for the multi-project case, keeping only
+/// duplication that spans two or more project roots.
 public struct CrossProjectAnalyzer: Sendable {
+    // A clone must touch at least this many projects to count as cross-project.
+    private static let minimumProjectSpan = 2
+
     public let roots: [ProjectRoot]
 
     public init(roots: [ProjectRoot]) {
         self.roots = roots
+    }
+
+    // Path components, ignoring empty segments so leading/trailing/duplicate
+    // slashes don't affect prefix matching.
+    private static func components(of path: String) -> [String] {
+        path.split(separator: "/", omittingEmptySubsequences: true).map(String.init)
     }
 
     /// The project that owns a file: the root whose path components are the
@@ -92,9 +64,9 @@ public struct CrossProjectAnalyzer: Sendable {
                 guard let root = project(for: instance.path) else { continue }
                 owners[root.name] = root
             }
-            guard owners.count >= 2 else { continue }
+            guard owners.count >= Self.minimumProjectSpan else { continue }
 
-            let involvesShared = owners.values.contains { $0.isShared }
+            let involvesShared = owners.values.contains(where: \.isShared)
             let kind: CrossProjectKind = involvesShared ? .duplicatedFromShared : .hoistCandidate
             result.append(CrossProjectClone(
                 cloneClass: cloneClass,
@@ -103,11 +75,5 @@ public struct CrossProjectAnalyzer: Sendable {
             ))
         }
         return result
-    }
-
-    // Path components, ignoring empty segments so leading/trailing/duplicate
-    // slashes don't affect prefix matching.
-    private static func components(of path: String) -> [String] {
-        path.split(separator: "/", omittingEmptySubsequences: true).map(String.init)
     }
 }

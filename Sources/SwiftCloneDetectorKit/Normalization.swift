@@ -10,15 +10,15 @@
 import SwiftSyntax
 
 public struct Normalization: Sendable {
+    /// Exact copy-paste only (modulo whitespace/comments — trivia isn't hashed).
+    public static let type1 = Self(renameIdentifiers: false, renameLiterals: false)
+    /// Copy-paste with renamed variables and changed constants.
+    public static let type2 = Self(renameIdentifiers: true, renameLiterals: true)
+
     /// Collapse all identifiers to one placeholder, so `total` ≡ `sum`.
     public var renameIdentifiers: Bool
     /// Collapse numeric/string literals, so `42` ≡ `99` and `"a"` ≡ `"b"`.
     public var renameLiterals: Bool
-
-    /// Exact copy-paste only (modulo whitespace/comments — trivia isn't hashed).
-    public static let type1 = Normalization(renameIdentifiers: false, renameLiterals: false)
-    /// Copy-paste with renamed variables and changed constants.
-    public static let type2 = Normalization(renameIdentifiers: true, renameLiterals: true)
 
     public init(renameIdentifiers: Bool, renameLiterals: Bool) {
         self.renameIdentifiers = renameIdentifiers
