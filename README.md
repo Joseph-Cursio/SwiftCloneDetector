@@ -1,5 +1,7 @@
 # swift-clone-detector
 
+[![Why this project](https://img.shields.io/badge/docs-why%20this%20project-blue)](docs/why-this-project.md)
+
 A Type-1/2/3 Swift clone detector built on SwiftSyntax. It finds the copy-paste
 duplication that token-based tools (PMD/CPD) handle poorly on Swift, by matching
 **AST structure** instead of token runs.
