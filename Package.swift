@@ -49,6 +49,14 @@ let kPackage = Package(
             name: "SwiftCloneDetectorKitTests",
             dependencies: ["SwiftCloneDetectorKit"],
             swiftSettings: kSwiftSettings
+        ),
+        .testTarget(
+            name: "SwiftCloneDetectorCLITests",
+            dependencies: [
+                "swift-clone-detector",
+                .product(name: "ArgumentParser", package: "swift-argument-parser")
+            ],
+            swiftSettings: kSwiftSettings
         )
     ]
 )

@@ -72,10 +72,17 @@ classes, parse the output back, and assert structure, fingerprints and
 byte-stability. Coverage of `Reporters.swift` went from untested (0%) to ~99%;
 kit line coverage is ~98%.
 
-Still untested (executable target, not linked by the test target): the
-`CloneDetectorCommand` argument parsing/orchestration, `BaselineFile` disk I/O,
-and the console `report()`/`reportCrossProject()`. The parser is now testable
-in-process via `CloneDetectorCommand.parse([...])` — a natural next step.
+Argument parsing is now tested too: a `SwiftCloneDetectorCLITests` target
+`@testable import`s the executable (importable since it uses `@main`) and drives
+`CloneDetectorCommand.parse([...])` — covering option/flag/path decoding, the
+`validate()` bounds, and the framework's type/unknown-option errors.
+`CloneDetectorCommand` line coverage went from 0% to ~28%.
+
+Still untested (needs end-to-end execution, not parsing): the command's `run()`
+orchestration, `BaselineFile` disk I/O, and `loadSwiftFiles` /
+`report()`/`reportCrossProject()` in `CommandLineSupport`. Moving the console
+reporters into the kit (as was done for JSON/SARIF) and adding a thin
+integration test over a temp fixture tree would close most of the remainder.
 
 ## Recommendation
 
