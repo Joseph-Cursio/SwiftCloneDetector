@@ -58,6 +58,30 @@ swift run swift-clone-detector --type3 --min-mass 90 --similarity 0.88 /path/to/
 `--min-mass` is the precision dial (higher = fewer, larger clones). Exit code is
 `2` when clones are found (handy for CI gating), `0` when clean.
 
+### Cross-project mode
+
+When several apps depend on a shared library, the question isn't "is there
+duplication?" but "what duplication belongs in the shared library?" Pass each
+consumer as a positional path and the library with `--shared`:
+
+```sh
+swift run swift-clone-detector --cross-project --min-mass 60 \
+  --shared ../LintStudioUI \
+  ../SwiftLintRuleStudio ../SwiftProjectLint ../SwiftFormatLint
+```
+
+Clones confined to a single project are dropped — only duplication that spans
+project boundaries is reported, split into two actionable groups:
+
+| Group | Meaning | Fix |
+|---|---|---|
+| **Hoist candidates** | the same code in ≥2 consumers, not in the shared library | extract it into the shared library, import everywhere |
+| **Duplicated from shared** | a consumer re-copied code that already exists in the shared library | delete the copy, import the library's version |
+
+Each file is assigned to a project by path prefix, and the project name is the
+last path component. Combines with `--type2` (default) or `--type3`, and exits
+`2` when any cross-project clone is found.
+
 ## Limitations (by design)
 
 - **Type-4 is out of scope.** Same behavior via a different implementation (e.g.
