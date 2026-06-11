@@ -9,6 +9,10 @@ import SwiftCloneDetectorKit
 
 /// Parsed command-line options and the CLI's fixed defaults/exit codes.
 struct Options {
+    static let toolName = "swift-clone-detector"
+    static let toolVersion = "0.1.0"
+    static let informationURI = "https://github.com/Joseph-Cursio/SwiftCloneDetector"
+
     static let defaultMinMass = 20
     static let defaultMinDistinctIdentifiers = 0
     static let defaultSimilarityThreshold = 0.85
@@ -26,4 +30,9 @@ struct Options {
     var crossProject = false
     var sharedPaths: [String] = []
     var paths: [String] = []
+    var format = OutputFormat.text
+    /// When set, only clones absent from this baseline are reported and gate CI.
+    var baselinePath: String?
+    /// When set, write the current clones to this path as a baseline and exit.
+    var writeBaselinePath: String?
 }

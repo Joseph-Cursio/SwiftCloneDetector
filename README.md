@@ -64,6 +64,49 @@ filters by *size*, this filters by *unique naming* — useful against
 large-but-repetitive structure (a long `switch`, a chained builder) that clears
 the size floor while being semantically thin. Off by default (`0`).
 
+### Output formats
+
+`--format` selects how results are rendered (all formats share the same exit
+codes):
+
+| Format | Use |
+|---|---|
+| `text` (default) | human-readable console report |
+| `json` | the detector's own compact schema, for scripting/dashboards |
+| `sarif` | SARIF 2.1.0 — drops straight into GitHub code-scanning |
+
+```sh
+# Upload to GitHub code-scanning so clones surface as inline PR annotations.
+swift run swift-clone-detector --format sarif Sources > clones.sarif
+```
+
+Every format encodes with sorted keys, so output is byte-stable from one run to
+the next. Each clone carries a stable `fingerprint` (see below); SARIF mirrors it
+in `partialFingerprints` so GitHub can track a clone across runs.
+
+### Baseline mode (CI ratchet)
+
+On a codebase that already has duplication, failing on *every* clone makes the
+exit-`2` gate unadoptable. A baseline records the clones you've already accepted
+so the gate fails only on clones that are **new** since it was written:
+
+```sh
+# 1. Record the current clones once, commit the file.
+swift run swift-clone-detector --min-mass 60 --write-baseline clones-baseline.json Sources
+
+# 2. In CI, fail only on clones absent from the baseline.
+swift run swift-clone-detector --min-mass 60 --baseline clones-baseline.json Sources
+```
+
+A clone's baseline identity is its *shape* — mass, instance count and the sorted
+set of files it touches — deliberately **not** its absolute line numbers. So a
+recorded clone drifting up or down its files stays suppressed, while a materially
+changed clone (different size or files) resurfaces as new. The baseline file is
+sorted by fingerprint and carries each clone's files/mass, so its diffs are
+reviewable in a pull request. Generate and check the baseline with the **same
+path arguments** so the recorded paths line up. Both `--write-baseline` and
+`--baseline` work in `--cross-project` mode too.
+
 ### Cross-project mode
 
 When several apps depend on a shared library, the question isn't "is there

@@ -138,7 +138,6 @@ opt_in_rules:
   - let_var_whitespace
   - multiline_parameters_brackets
   - toggle_bool
-  - vertical_whitespace_between_cases
   - unused_parameter
   - enum_case_associated_values_count
   - discouraged_none_name

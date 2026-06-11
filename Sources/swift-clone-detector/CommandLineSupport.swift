@@ -26,6 +26,10 @@ OPTIONS:
                      — filters large-but-repetitive structure (default: 0, off)
   --cross-project    only report clones spanning two or more project roots
   --shared PATH      mark a project root as the shared package (repeatable)
+  --format FORMAT    output format: text (default), json, or sarif
+  --baseline PATH    only report clones absent from this baseline file
+  --write-baseline PATH
+                     write the current clones to PATH as a baseline and exit
   -h, --help         show this help
 
 Type-1/2 match identical structure; --type3 finds copies that have drifted by a

@@ -8,6 +8,12 @@
 import Foundation
 import SwiftCloneDetectorKit
 
+// The options that consume the following argument as their value.
+private let kValueOptionNames: Set<String> = [
+    "--min-mass", "--min-distinct-identifiers", "--similarity",
+    "--shared", "--format", "--baseline", "--write-baseline"
+]
+
 // Apply a value-taking option (one that consumes the next argument). Returns
 // false if `argument` is not a value option, leaving it for `applyFlag`.
 private func applyValueOption(
@@ -16,30 +22,56 @@ private func applyValueOption(
     _ index: inout Int,
     _ options: inout Options
 ) -> Bool {
-    func nextValue() -> String? {
-        guard index + 1 < rawArguments.count else {
-            return nil
-        }
-        index += 1
-        return rawArguments[index]
+    guard kValueOptionNames.contains(argument) else {
+        return false
     }
+    guard index + 1 < rawArguments.count else {
+        return true  // Dangling value option with nothing after it; ignore.
+    }
+    index += 1
+    let value = rawArguments[index]
+    if !applyTuningOption(argument, value, &options) {
+        applyOutputOption(argument, value, &options)
+    }
+    return true
+}
+
+// Apply an analysis-tuning value option. Returns false if `argument` is not one.
+private func applyTuningOption(_ argument: String, _ value: String, _ options: inout Options) -> Bool {
     switch argument {
     case "--min-mass":
-        if let value = nextValue(), let parsed = Int(value) { options.minMass = parsed }
+        if let parsed = Int(value) { options.minMass = parsed }
 
     case "--min-distinct-identifiers":
-        if let value = nextValue(), let parsed = Int(value) { options.minDistinctIdentifiers = parsed }
+        if let parsed = Int(value) { options.minDistinctIdentifiers = parsed }
 
     case "--similarity":
-        if let value = nextValue(), let parsed = Double(value) { options.similarityThreshold = parsed }
+        if let parsed = Double(value) { options.similarityThreshold = parsed }
 
     case "--shared":
-        if let value = nextValue() { options.sharedPaths.append(value) }
+        options.sharedPaths.append(value)
 
     default:
         return false
     }
     return true
+}
+
+// Apply an output value option (format, baseline, write-baseline).
+private func applyOutputOption(_ argument: String, _ value: String, _ options: inout Options) {
+    switch argument {
+    case "--format":
+        guard let format = OutputFormat(rawValue: value) else {
+            failUsage("unknown --format '\(value)' (expected: text, json, or sarif)")
+        }
+        options.format = format
+
+    case "--baseline":
+        options.baselinePath = value
+
+    default:
+        options.writeBaselinePath = value
+    }
 }
 
 // Apply a boolean flag (or fall through to treating the argument as a path).
@@ -113,8 +145,15 @@ private func runCrossProject(_ options: Options) -> Never {
 
     let classes = findClones(in: sources, options: options)
     let cross = CrossProjectAnalyzer(roots: roots).analyze(classes)
-    reportCrossProject(cross, roots: roots, fileCount: sources.count, nearMiss: options.nearMiss)
-    exit(cross.isEmpty ? 0 : Options.clonesFoundExitCode)
+
+    if let path = options.writeBaselinePath {
+        writeBaseline(cross.map(\.cloneClass), to: path)
+        exit(0)
+    }
+
+    let (reported, knownCount) = applyBaselineCross(cross, options: options)
+    emitCrossProject(reported, roots: roots, fileCount: sources.count, options: options, suppressed: knownCount)
+    exit(reported.isEmpty ? 0 : Options.clonesFoundExitCode)
 }
 
 @MainActor
@@ -136,8 +175,80 @@ private func run() -> Never {
     }
 
     let classes = findClones(in: sources, options: options)
-    report(classes, fileCount: sources.count, nearMiss: options.nearMiss)
-    exit(classes.isEmpty ? 0 : Options.clonesFoundExitCode)
+
+    if let path = options.writeBaselinePath {
+        writeBaseline(classes, to: path)
+        exit(0)
+    }
+
+    let (reported, knownCount) = applyBaseline(classes, options: options)
+    emit(reported, fileCount: sources.count, options: options, suppressed: knownCount)
+    exit(reported.isEmpty ? 0 : Options.clonesFoundExitCode)
+}
+
+// Filter detected clones through a baseline, if one was given. Returns the
+// clones to report and how many were suppressed as already-known.
+@MainActor
+private func applyBaseline(
+    _ classes: [CloneClass],
+    options: Options
+) -> (reported: [CloneClass], suppressed: Int) {
+    guard let path = options.baselinePath else {
+        return (classes, 0)
+    }
+    let fingerprints = loadBaseline(at: path).fingerprintSet
+    let split = partitionClasses(classes, baseline: fingerprints)
+    return (split.new, split.known.count)
+}
+
+@MainActor
+private func applyBaselineCross(
+    _ clones: [CrossProjectClone],
+    options: Options
+) -> (reported: [CrossProjectClone], suppressed: Int) {
+    guard let path = options.baselinePath else {
+        return (clones, 0)
+    }
+    let fingerprints = loadBaseline(at: path).fingerprintSet
+    let reported = clones.filter { !fingerprints.contains(cloneFingerprint(for: $0.cloneClass)) }
+    return (reported, clones.count - reported.count)
+}
+
+// Render results in the requested format, with a baseline note for text output.
+@MainActor
+private func emit(_ classes: [CloneClass], fileCount: Int, options: Options, suppressed: Int) {
+    switch options.format {
+    case .text:
+        report(classes, fileCount: fileCount, nearMiss: options.nearMiss)
+        if suppressed > 0 {
+            print("(\(suppressed) known clone(s) suppressed by baseline.)")
+        }
+    case .json:
+        print(jsonReport(classes, fileCount: fileCount, nearMiss: options.nearMiss))
+    case .sarif:
+        print(sarifReport(classes, nearMiss: options.nearMiss))
+    }
+}
+
+@MainActor
+private func emitCrossProject(
+    _ clones: [CrossProjectClone],
+    roots: [ProjectRoot],
+    fileCount: Int,
+    options: Options,
+    suppressed: Int
+) {
+    switch options.format {
+    case .text:
+        reportCrossProject(clones, roots: roots, fileCount: fileCount, nearMiss: options.nearMiss)
+        if suppressed > 0 {
+            print("(\(suppressed) known clone(s) suppressed by baseline.)")
+        }
+    case .json:
+        print(jsonReportCrossProject(clones, fileCount: fileCount))
+    case .sarif:
+        print(sarifReportCrossProject(clones))
+    }
 }
 
 run()
