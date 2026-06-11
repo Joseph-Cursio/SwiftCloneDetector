@@ -12,6 +12,8 @@ var minMass = 20
 var normalization = Normalization.type2
 var nearMiss = false
 var similarityThreshold = 0.85
+var crossProject = false
+var sharedPaths: [String] = []
 var paths: [String] = []
 
 let arguments = Array(CommandLine.arguments.dropFirst())
@@ -40,6 +42,15 @@ while index < arguments.count {
     case "--type3", "--near":
         nearMiss = true
 
+    case "--cross-project":
+        crossProject = true
+
+    case "--shared":
+        index += 1
+        if index < arguments.count {
+            sharedPaths.append(arguments[index])
+        }
+
     case "-h", "--help":
         print(kUsage)
         exit(0)
@@ -48,6 +59,35 @@ while index < arguments.count {
         paths.append(argument)
     }
     index += 1
+}
+
+@MainActor
+func findClones(in sources: [SourceInput]) -> [CloneClass] {
+    if nearMiss {
+        return NearMissFinder(minMass: minMass, similarityThreshold: similarityThreshold).find(in: sources)
+    }
+    return CloneFinder(normalization: normalization, minMass: minMass).find(in: sources)
+}
+
+if crossProject {
+    let roots = projectRoots(consumers: paths, shared: sharedPaths)
+    if roots.count < 2 {
+        let message = "swift-clone-detector: --cross-project needs at least two project roots "
+            + "(pass consumer paths and optionally --shared)\n"
+        FileHandle.standardError.write(Data(message.utf8))
+        exit(1)
+    }
+
+    let sources = loadSwiftFiles(paths: paths + sharedPaths)
+    if sources.isEmpty {
+        FileHandle.standardError.write(Data("swift-clone-detector: no .swift files found\n".utf8))
+        exit(1)
+    }
+
+    let classes = findClones(in: sources)
+    let cross = CrossProjectAnalyzer(roots: roots).analyze(classes)
+    reportCrossProject(cross, roots: roots, fileCount: sources.count, nearMiss: nearMiss)
+    exit(cross.isEmpty ? 0 : 2)
 }
 
 if paths.isEmpty {
@@ -60,14 +100,6 @@ if sources.isEmpty {
     exit(1)
 }
 
-let classes: [CloneClass]
-if nearMiss {
-    let finder = NearMissFinder(minMass: minMass, similarityThreshold: similarityThreshold)
-    classes = finder.find(in: sources)
-} else {
-    let finder = CloneFinder(normalization: normalization, minMass: minMass)
-    classes = finder.find(in: sources)
-}
-
+let classes = findClones(in: sources)
 report(classes, fileCount: sources.count, nearMiss: nearMiss)
 exit(classes.isEmpty ? 0 : 2)
