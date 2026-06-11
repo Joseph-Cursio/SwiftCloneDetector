@@ -10,7 +10,7 @@ import Foundation
 import SwiftCloneDetectorKit
 
 let kUsage = """
-swift-clone-detector — Type-1/Type-2 Swift clone detector
+swift-clone-detector — Type-1/2/3 Swift clone detector
 
 USAGE:
   swift-clone-detector [options] [paths...]
@@ -18,11 +18,14 @@ USAGE:
 OPTIONS:
   --type1            exact clones only (no identifier/literal normalization)
   --type2            also match renamed identifiers and literals (default)
+  --type3, --near    near-miss clones (inserted/removed/changed statements)
+  --similarity N     near-miss threshold in [0, 1] (default: 0.85)
   --min-mass N       minimum subtree size in AST nodes (default: 20)
   -h, --help         show this help
 
-Paths may be files or directories; directories are searched recursively.
-Defaults to the current directory. Exit code is 2 when clones are found.
+Type-1/2 match identical structure; --type3 finds copies that have drifted by a
+few statements. Paths may be files or directories (searched recursively), and
+default to the current directory. Exit code is 2 when clones are found.
 """
 
 func loadSwiftFiles(paths: [String]) -> [SourceInput] {
@@ -51,9 +54,11 @@ func loadSwiftFiles(paths: [String]) -> [SourceInput] {
     }
 }
 
-func report(_ classes: [CloneClass], fileCount: Int) {
+func report(_ classes: [CloneClass], fileCount: Int, nearMiss: Bool) {
+    let label = nearMiss ? "Type-3 near-miss" : "Type-1/2"
+
     guard !classes.isEmpty else {
-        print("No Type-1/2 clones found across \(fileCount) file(s).")
+        print("No \(label) clones found across \(fileCount) file(s).")
         return
     }
 
@@ -63,15 +68,20 @@ func report(_ classes: [CloneClass], fileCount: Int) {
         let lineSpan = first.endLine - first.startLine + 1
         duplicatedLines += lineSpan * (cloneClass.instances.count - 1)
 
+        var headline = "Clone #\(index + 1) — \(cloneClass.instances.count) instances, "
+            + "\(cloneClass.mass) nodes (~\(lineSpan) lines)"
+        if let similarity = cloneClass.similarity {
+            headline += ", \(Int((similarity * 100).rounded()))% similar"
+        }
+
         print("")
-        print("Clone #\(index + 1) — \(cloneClass.instances.count) instances, "
-            + "\(cloneClass.mass) nodes (~\(lineSpan) lines):")
+        print("\(headline):")
         for instance in cloneClass.instances {
             print("  \(instance.path):\(instance.startLine)-\(instance.endLine)")
         }
     }
 
     print("")
-    print("Found \(classes.count) clone class(es) across \(fileCount) file(s); "
+    print("Found \(classes.count) \(label) clone class(es) across \(fileCount) file(s); "
         + "~\(duplicatedLines) duplicated line(s).")
 }

@@ -10,6 +10,8 @@ import SwiftCloneDetectorKit
 
 var minMass = 20
 var normalization = Normalization.type2
+var nearMiss = false
+var similarityThreshold = 0.85
 var paths: [String] = []
 
 let arguments = Array(CommandLine.arguments.dropFirst())
@@ -23,11 +25,20 @@ while index < arguments.count {
             minMass = value
         }
 
+    case "--similarity":
+        index += 1
+        if index < arguments.count, let value = Double(arguments[index]) {
+            similarityThreshold = value
+        }
+
     case "--type1":
         normalization = .type1
 
     case "--type2":
         normalization = .type2
+
+    case "--type3", "--near":
+        nearMiss = true
 
     case "-h", "--help":
         print(kUsage)
@@ -49,7 +60,14 @@ if sources.isEmpty {
     exit(1)
 }
 
-let finder = CloneFinder(normalization: normalization, minMass: minMass)
-let classes = finder.find(in: sources)
-report(classes, fileCount: sources.count)
+let classes: [CloneClass]
+if nearMiss {
+    let finder = NearMissFinder(minMass: minMass, similarityThreshold: similarityThreshold)
+    classes = finder.find(in: sources)
+} else {
+    let finder = CloneFinder(normalization: normalization, minMass: minMass)
+    classes = finder.find(in: sources)
+}
+
+report(classes, fileCount: sources.count, nearMiss: nearMiss)
 exit(classes.isEmpty ? 0 : 2)
