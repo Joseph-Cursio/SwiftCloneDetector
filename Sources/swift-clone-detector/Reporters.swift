@@ -104,8 +104,8 @@ private func jsonCrossClone(_ clone: CrossProjectClone) -> CloneReportJSON.Cross
 
 func jsonReport(_ classes: [CloneClass], fileCount: Int, nearMiss: Bool) -> String {
     let report = CloneReportJSON.Report(
-        tool: Options.toolName,
-        version: Options.toolVersion,
+        tool: ToolInfo.name,
+        version: ToolInfo.version,
         mode: nearMiss ? "type3" : "type1-2",
         fileCount: fileCount,
         duplicatedLines: duplicatedLineCount(classes),
@@ -117,8 +117,8 @@ func jsonReport(_ classes: [CloneClass], fileCount: Int, nearMiss: Bool) -> Stri
 
 func jsonReportCrossProject(_ clones: [CrossProjectClone], fileCount: Int) -> String {
     let report = CloneReportJSON.CrossReport(
-        tool: Options.toolName,
-        version: Options.toolVersion,
+        tool: ToolInfo.name,
+        version: ToolInfo.version,
         mode: "cross-project",
         fileCount: fileCount,
         duplicatedLines: duplicatedLineCount(clones.map(\.cloneClass)),
@@ -141,9 +141,9 @@ private func sarifDocument(findings: [SARIF.Finding], rules: [SARIFRule]) -> Str
         )
     }
     let driver = SARIF.Driver(
-        name: Options.toolName,
-        version: Options.toolVersion,
-        informationUri: Options.informationURI,
+        name: ToolInfo.name,
+        version: ToolInfo.version,
+        informationUri: ToolInfo.informationURI,
         rules: rules
     )
     let log = SARIFLog(

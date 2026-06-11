@@ -2,49 +2,12 @@
 //  CommandLineSupport.swift
 //  swift-clone-detector
 //
-//  File discovery, help text, and the console reporter. Kept out of main.swift
-//  so the entry point stays a thin argument-parsing shell.
+//  File discovery and the console reporter. Kept out of the command definition
+//  so it stays a thin argument-parsing shell.
 //
 
 import Foundation
 import SwiftCloneDetectorKit
-
-let kUsage = """
-swift-clone-detector — Type-1/2/3 Swift clone detector
-
-USAGE:
-  swift-clone-detector [options] [paths...]
-
-OPTIONS:
-  --type1            exact clones only (no identifier/literal normalization)
-  --type2            also match renamed identifiers and literals (default)
-  --type3, --near    near-miss clones (inserted/removed/changed statements)
-  --similarity N     near-miss threshold in [0, 1] (default: 0.85)
-  --min-mass N       minimum subtree size in AST nodes (default: 20)
-  --min-distinct-identifiers N
-                     drop fragments with fewer than N distinct identifier tokens
-                     — filters large-but-repetitive structure (default: 0, off)
-  --cross-project    only report clones spanning two or more project roots
-  --shared PATH      mark a project root as the shared package (repeatable)
-  --format FORMAT    output format: text (default), json, or sarif
-  --baseline PATH    only report clones absent from this baseline file
-  --write-baseline PATH
-                     write the current clones to PATH as a baseline and exit
-  -h, --help         show this help
-
-Type-1/2 match identical structure; --type3 finds copies that have drifted by a
-few statements. Paths may be files or directories (searched recursively), and
-default to the current directory. Exit code is 2 when clones are found.
-
-In --cross-project mode, each positional path is a consumer project and each
---shared path is the library they depend on. Clones confined to one project are
-dropped; the rest are flagged either as hoist candidates (duplicated across
-consumers — extract into the shared package) or as duplicated-from-shared (a
-consumer re-copied shared code — import it instead). Example:
-
-  swift-clone-detector --cross-project --shared ../LintStudioUI \\
-    ../SwiftLintRuleStudio ../SwiftProjectLint ../SwiftFormatLint
-"""
 
 /// Build the project-root set: each consumer path plus each shared path, named
 /// by its last path component.

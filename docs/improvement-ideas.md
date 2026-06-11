@@ -24,21 +24,14 @@ reviewable diffs. Works in `--cross-project` mode too.
 
 ### 3. Argument-parsing footguns ✅
 
-The hand-rolled parser now fails fast with a usage error (exit 1) instead of
-silently misbehaving:
-
-- An unknown option (`--min-mas`, a typo) is rejected rather than swallowed as a
-  bogus path.
-- Numeric values are validated: `--min-mass`/`--min-distinct-identifiers` must be
-  integers (with sane floors) and `--similarity` must be a number in `0...1`;
-  unparseable or out-of-range values error instead of being silently dropped.
-- A value option with no value, or whose value looks like another option, errors
-  instead of silently consuming the wrong token.
-
-A future migration to **swift-argument-parser** (already in the workspace) would
-fold all of this into the library and add `--help` generation, at the cost of one
-dependency. The parser still exits directly via `failUsage`, so a refactor to
-*throw* usage errors would also make the parse path unit-testable.
+Migrated the CLI to **swift-argument-parser** (`CloneDetectorCommand`). The
+library now provides what the hand-rolled parser had to do by hand: unknown
+options, type-mismatched values (`--min-mass abc`) and missing values are all
+rejected with clear errors, and `--help`/`--version` are generated. Range checks
+(`--min-mass` floor, `--similarity` in `0...1`) live in `validate()`. Usage errors
+exit `64` (`EX_USAGE`) — the framework convention — while the clones-found `2` and
+clean `0` exit codes are preserved. Baseline I/O failures surface as
+`ValidationError`. Cost: one dependency (swift-syntax is no longer the only one).
 
 ## Medium
 

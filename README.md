@@ -6,7 +6,8 @@ A Type-1/2/3 Swift clone detector built on SwiftSyntax. It finds the copy-paste
 duplication that token-based tools (PMD/CPD) handle poorly on Swift, by matching
 **AST structure** instead of token runs.
 
-Standalone SwiftPM package — depends only on swift-syntax.
+SwiftPM package; depends on swift-syntax (parsing) and swift-argument-parser
+(the CLI).
 
 ## What it catches
 
@@ -56,7 +57,9 @@ swift run swift-clone-detector --type3 --min-mass 90 --similarity 0.88 /path/to/
 ```
 
 `--min-mass` is the precision dial (higher = fewer, larger clones). Exit code is
-`2` when clones are found (handy for CI gating), `0` when clean.
+`2` when clones are found (handy for CI gating), `0` when clean, and `64`
+(`EX_USAGE`) on a usage error. Run `--help` for the full option list (the CLI is
+built on swift-argument-parser, so `--help` and `--version` are generated).
 
 `--min-distinct-identifiers N` is a second, orthogonal precision dial: it drops
 fragments carrying fewer than `N` distinct identifier tokens. Where `--min-mass`
