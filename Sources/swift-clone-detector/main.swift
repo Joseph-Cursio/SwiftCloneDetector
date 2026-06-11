@@ -14,6 +14,35 @@ private let kValueOptionNames: Set<String> = [
     "--shared", "--format", "--baseline", "--write-baseline"
 ]
 
+// Validation bounds for numeric options.
+private let kMinMassFloor = 1
+private let kMinDistinctFloor = 0
+private let kSimilarityRange = 0.0...1.0
+
+// Parse an integer option value, or exit with a usage error if it is not a
+// valid integer at or above `minimum`.
+private func intValue(_ value: String, for option: String, minimum: Int) -> Int {
+    guard let parsed = Int(value) else {
+        failUsage("option '\(option)' expects an integer, got '\(value)'")
+    }
+    guard parsed >= minimum else {
+        failUsage("option '\(option)' must be at least \(minimum), got \(parsed)")
+    }
+    return parsed
+}
+
+// Parse a floating-point option value, or exit with a usage error if it is not
+// a valid number within `range`.
+private func doubleValue(_ value: String, for option: String, range: ClosedRange<Double>) -> Double {
+    guard let parsed = Double(value) else {
+        failUsage("option '\(option)' expects a number, got '\(value)'")
+    }
+    guard range.contains(parsed) else {
+        failUsage("option '\(option)' must be within \(range.lowerBound)...\(range.upperBound), got \(parsed)")
+    }
+    return parsed
+}
+
 // Apply a value-taking option (one that consumes the next argument). Returns
 // false if `argument` is not a value option, leaving it for `applyFlag`.
 private func applyValueOption(
@@ -26,10 +55,13 @@ private func applyValueOption(
         return false
     }
     guard index + 1 < rawArguments.count else {
-        return true  // Dangling value option with nothing after it; ignore.
+        failUsage("option '\(argument)' requires a value")
+    }
+    let value = rawArguments[index + 1]
+    guard !value.hasPrefix("-") else {
+        failUsage("option '\(argument)' requires a value, but found the option '\(value)'")
     }
     index += 1
-    let value = rawArguments[index]
     if !applyTuningOption(argument, value, &options) {
         applyOutputOption(argument, value, &options)
     }
@@ -40,13 +72,13 @@ private func applyValueOption(
 private func applyTuningOption(_ argument: String, _ value: String, _ options: inout Options) -> Bool {
     switch argument {
     case "--min-mass":
-        if let parsed = Int(value) { options.minMass = parsed }
+        options.minMass = intValue(value, for: argument, minimum: kMinMassFloor)
 
     case "--min-distinct-identifiers":
-        if let parsed = Int(value) { options.minDistinctIdentifiers = parsed }
+        options.minDistinctIdentifiers = intValue(value, for: argument, minimum: kMinDistinctFloor)
 
     case "--similarity":
-        if let parsed = Double(value) { options.similarityThreshold = parsed }
+        options.similarityThreshold = doubleValue(value, for: argument, range: kSimilarityRange)
 
     case "--shared":
         options.sharedPaths.append(value)
@@ -94,6 +126,9 @@ private func applyFlag(_ argument: String, _ options: inout Options) {
         exit(0)
 
     default:
+        if argument.hasPrefix("-") {
+            failUsage("unknown option '\(argument)' (see --help)")
+        }
         options.paths.append(argument)
     }
 }

@@ -22,18 +22,23 @@ so a recorded clone survives line drift while a materially changed one resurface
 The baseline file is fingerprint-sorted and carries each clone's files/mass for
 reviewable diffs. Works in `--cross-project` mode too.
 
-## High leverage
+### 3. Argument-parsing footguns ✅
 
-### 3. Argument-parsing footguns (partially addressed)
+The hand-rolled parser now fails fast with a usage error (exit 1) instead of
+silently misbehaving:
 
-`--format` now rejects unknown values with a usage error, and value options run
-through a known-name set. Still open: an unknown **flag** (`--min-mas 60`, a typo)
-falls through `applyFlag`'s `default` and gets appended to `paths`, then silently
-skipped as a non-existent path — so the user gets results with a *different*
-min-mass than they asked for and no warning. Reject unknown `--flags` outright,
-or migrate to **swift-argument-parser** (already checked out in the workspace).
-The trade-off is one dependency vs. the current zero-dep-beyond-swift-syntax
-purity; given the silent-failure UX, lean toward fixing it.
+- An unknown option (`--min-mas`, a typo) is rejected rather than swallowed as a
+  bogus path.
+- Numeric values are validated: `--min-mass`/`--min-distinct-identifiers` must be
+  integers (with sane floors) and `--similarity` must be a number in `0...1`;
+  unparseable or out-of-range values error instead of being silently dropped.
+- A value option with no value, or whose value looks like another option, errors
+  instead of silently consuming the wrong token.
+
+A future migration to **swift-argument-parser** (already in the workspace) would
+fold all of this into the library and add `--help` generation, at the cost of one
+dependency. The parser still exits directly via `failUsage`, so a refactor to
+*throw* usage errors would also make the parse path unit-testable.
 
 ## Medium
 
