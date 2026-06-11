@@ -54,6 +54,7 @@ let kPackage = Package(
             name: "SwiftCloneDetectorCLITests",
             dependencies: [
                 "swift-clone-detector",
+                "SwiftCloneDetectorKit",
                 .product(name: "ArgumentParser", package: "swift-argument-parser")
             ],
             swiftSettings: kSwiftSettings

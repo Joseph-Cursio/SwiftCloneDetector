@@ -78,11 +78,15 @@ Argument parsing is now tested too: a `SwiftCloneDetectorCLITests` target
 `validate()` bounds, and the framework's type/unknown-option errors.
 `CloneDetectorCommand` line coverage went from 0% to ~28%.
 
-Still untested (needs end-to-end execution, not parsing): the command's `run()`
-orchestration, `BaselineFile` disk I/O, and `loadSwiftFiles` /
-`report()`/`reportCrossProject()` in `CommandLineSupport`. Moving the console
-reporters into the kit (as was done for JSON/SARIF) and adding a thin
-integration test over a temp fixture tree would close most of the remainder.
+An integration pass closed the rest: `IntegrationTests` runs the command
+end-to-end over temp-directory fixtures (planted clones, clean trees, every
+output format, baseline write/suppress/new-clone, missing/corrupt baselines,
+cross-project hoist), capturing stdout and asserting exit codes, output and the
+written baseline. That lifted the executable target from near-zero to
+`CloneDetectorCommand` ~88%, `CommandLineSupport` ~90%, `BaselineFile` ~84% line
+coverage; the whole package now sits at ~96% lines / ~94% functions. The thin
+remainder is defensive error branches (encode/IO failures) and a few format
+permutations not worth a dedicated fixture.
 
 ## Recommendation
 
