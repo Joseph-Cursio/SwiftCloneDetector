@@ -51,6 +51,18 @@ private func projectName(for path: String) -> String {
     return components.last.map(String.init) ?? path
 }
 
+// Skip generated/derived trees: SwiftPM build dirs (.build, .build-coverage,
+// index-build), Xcode DerivedData, .swiftpm, and .git. Crucially this drops the
+// dependency *checkouts* nested under .build*, which are vendored copies of
+// other packages — not duplication the user wrote.
+private let kExcludedDirectoryNames: Set<String> = [".swiftpm", "DerivedData", ".git"]
+
+private func isInBuildArtifact(_ relativePath: String) -> Bool {
+    relativePath.split(separator: "/").contains { component in
+        component.hasPrefix(".build") || kExcludedDirectoryNames.contains(String(component))
+    }
+}
+
 func loadSwiftFiles(paths: [String]) -> [SourceInput] {
     let fileManager = FileManager.default
     var swiftFilePaths: [String] = []
@@ -63,7 +75,7 @@ func loadSwiftFiles(paths: [String]) -> [SourceInput] {
             let enumerator = fileManager.enumerator(atPath: path)
             while let item = enumerator?.nextObject() as? String {
                 guard item.hasSuffix(".swift") else { continue }
-                if item.hasPrefix(".build/") || item.contains("/.build/") { continue }
+                if isInBuildArtifact(item) { continue }
                 swiftFilePaths.append((path as NSString).appendingPathComponent(item))
             }
         } else if path.hasSuffix(".swift") {
