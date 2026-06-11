@@ -111,13 +111,17 @@ public struct CloneFinder {
     }
 
     // A full structural signature used to confirm a bucket is a true match.
-    // Encodes node kinds and normalized leaf tokens, so equal signatures are
-    // genuinely equal subtrees under the active normalization.
+    // Encodes node kinds and consistently-renamed leaf tokens, so equal signatures
+    // are genuinely equal subtrees that also reuse identifiers in the same pattern.
+    // The blind hash that fed this bucket only approximates that — two fragments
+    // with the same shape but different identifier-reuse patterns share a hash yet
+    // produce different signatures here, and so are correctly split apart.
     private func signature(of node: Syntax) -> String {
         var parts: [String] = []
+        var mapping: [String: Int] = [:]
         func emit(_ node: Syntax) {
             if let token = node.as(TokenSyntax.self) {
-                parts.append(normalization.canonicalText(for: token))
+                parts.append(normalization.consistentText(for: token, mapping: &mapping))
                 return
             }
             parts.append("(\(node.kind)")

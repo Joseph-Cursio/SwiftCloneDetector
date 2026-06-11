@@ -68,6 +68,74 @@ struct CloneFinderTests {
         #expect(classes.isEmpty)
     }
 
+    @Test("consistent renaming separates structs whose field types reuse differently")
+    func consistentRenamingSeparatesByTypePattern() {
+        // Same shape (4 fields + memberwise init), but one is all-Int and the other
+        // mixes String/Int. Blind Type-2 folds every type name to one placeholder
+        // and wrongly matches them; consistent renaming keeps the reuse patterns
+        // (Int,Int,Int,Int vs String,Int,String,String) distinct.
+        let allInts = """
+        struct Summary {
+            let totalIssues: Int
+            let errorCount: Int
+            let warningCount: Int
+            let infoCount: Int
+            init(totalIssues: Int, errorCount: Int, warningCount: Int, infoCount: Int) {
+                self.totalIssues = totalIssues
+                self.errorCount = errorCount
+                self.warningCount = warningCount
+                self.infoCount = infoCount
+            }
+        }
+        """
+        let mixedTypes = """
+        struct Finding {
+            let filePath: String
+            let line: Int
+            let ruleID: String
+            let reason: String
+            init(filePath: String, line: Int, ruleID: String, reason: String) {
+                self.filePath = filePath
+                self.line = line
+                self.ruleID = ruleID
+                self.reason = reason
+            }
+        }
+        """
+        let finder = CloneFinder(normalization: .type2, minMass: 20)
+        let classes = finder.find(in: [source("a.swift", allInts), source("b.swift", mixedTypes)])
+        #expect(classes.isEmpty)
+    }
+
+    @Test("consistent renaming still matches a faithfully renamed copy")
+    func consistentRenamingMatchesTrueRename() {
+        // Identical field types (Int, Int) and reuse pattern, only the names differ —
+        // a genuine Type-2 clone that consistent renaming must still catch.
+        let original = """
+        struct Box {
+            let alpha: Int
+            let beta: Int
+            init(alpha: Int, beta: Int) {
+                self.alpha = alpha
+                self.beta = beta
+            }
+        }
+        """
+        let renamed = """
+        struct Crate {
+            let first: Int
+            let second: Int
+            init(first: Int, second: Int) {
+                self.first = first
+                self.second = second
+            }
+        }
+        """
+        let finder = CloneFinder(normalization: .type2, minMass: 20)
+        let classes = finder.find(in: [source("a.swift", original), source("b.swift", renamed)])
+        #expect(classes.contains { $0.instances.count >= 2 })
+    }
+
     @Test("reports the enclosing clone once, not every nested sub-clone")
     func subsumption() {
         let body = """

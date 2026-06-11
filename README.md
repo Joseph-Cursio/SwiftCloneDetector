@@ -87,8 +87,16 @@ last path component. Combines with `--type2` (default) or `--type3`, and exits
 - **Type-4 is out of scope.** Same behavior via a different implementation (e.g.
   a line-diff and a char-diff sharing one algorithm) has no structural overlap;
   that stays a reading-pass job.
-- **Identifier renaming is "blind"** — all identifiers map to one placeholder
-  rather than enforcing a consistent 1:1 mapping, which can slightly over-match.
+- **Identifier renaming is consistent at confirmation, blind at hashing.** The
+  hash that buckets candidates folds every identifier to one placeholder (fast,
+  order-independent), so it over-approximates. Match confirmation then re-checks
+  each bucket with a 1:1 renaming (first distinct identifier → `$ID0`, next →
+  `$ID1`, reuse preserved), so two fragments match only if they reuse identifiers
+  in the same pattern — e.g. an all-`Int` struct no longer matches a
+  `String, Int, String` one. Renaming is still not type-aware: type names are
+  renamed like any other identifier, so very small fragments (a lone
+  `let x: Int`) can still match across unrelated types. Raise `--min-mass` to
+  filter those.
 - **Sequence clones** (a duplicated *run* of sibling statements that isn't a
   single subtree) aren't detected yet; that needs a sliding window over
   `CodeBlockItemList`.
