@@ -55,6 +55,12 @@ struct CloneDetectorCommand: ParsableCommand {
     )
     var nearMiss = false
 
+    @Flag(
+        name: .customLong("sequence"),
+        help: "Detect duplicated runs of consecutive statements that aren't a single subtree."
+    )
+    var sequence = false
+
     @Flag(name: .customLong("cross-project"), help: "Only report clones spanning two or more project roots.")
     var crossProject = false
 
@@ -106,6 +112,12 @@ struct CloneDetectorCommand: ParsableCommand {
     // type1 wins if both type flags are given; type2 is the implicit default.
     private var normalization: Normalization {
         type1 ? .type1 : .type2
+    }
+
+    // Sequence clones are exact/renamed duplications, so they report as Type-1/2
+    // even if --type3 was also passed; --sequence selects the strategy.
+    private var reportsNearMiss: Bool {
+        nearMiss && !sequence
     }
 
     func validate() throws {
@@ -174,6 +186,13 @@ struct CloneDetectorCommand: ParsableCommand {
     }
 
     private func findClones(in sources: [SourceInput]) -> [CloneClass] {
+        if sequence {
+            return SequenceCloneFinder(
+                normalization: normalization,
+                minMass: minMass,
+                minDistinctIdentifiers: minDistinctIdentifiers
+            ).find(in: sources)
+        }
         if nearMiss {
             return NearMissFinder(
                 minMass: minMass,
@@ -216,14 +235,14 @@ struct CloneDetectorCommand: ParsableCommand {
     private func emit(_ classes: [CloneClass], fileCount: Int, suppressed: Int) {
         switch format {
         case .text:
-            report(classes, fileCount: fileCount, nearMiss: nearMiss)
+            report(classes, fileCount: fileCount, nearMiss: reportsNearMiss)
             if suppressed > 0 {
                 print("(\(suppressed) known clone(s) suppressed by baseline.)")
             }
         case .json:
-            print(jsonReport(classes, fileCount: fileCount, nearMiss: nearMiss))
+            print(jsonReport(classes, fileCount: fileCount, nearMiss: reportsNearMiss))
         case .sarif:
-            print(sarifReport(classes, nearMiss: nearMiss))
+            print(sarifReport(classes, nearMiss: reportsNearMiss))
         }
     }
 
@@ -235,7 +254,7 @@ struct CloneDetectorCommand: ParsableCommand {
     ) {
         switch format {
         case .text:
-            reportCrossProject(clones, roots: roots, fileCount: fileCount, nearMiss: nearMiss)
+            reportCrossProject(clones, roots: roots, fileCount: fileCount, nearMiss: reportsNearMiss)
             if suppressed > 0 {
                 print("(\(suppressed) known clone(s) suppressed by baseline.)")
             }

@@ -79,6 +79,7 @@ struct CommandParsingTests {
         #expect(typed.crossProject)
         #expect(try parse(["--near", "Sources"]).nearMiss)
         #expect(try parse(["--type3", "Sources"]).nearMiss)
+        #expect(try parse(["--sequence", "Sources"]).sequence)
     }
 
     @Test("--shared is repeatable")

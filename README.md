@@ -54,7 +54,19 @@ swift run swift-clone-detector --min-mass 60 /path/to/Sources
 
 # Type-3: near-miss copies that drifted by a few statements
 swift run swift-clone-detector --type3 --min-mass 90 --similarity 0.88 /path/to/Sources
+
+# Sequence clones: a duplicated run of statements that isn't a whole subtree
+swift run swift-clone-detector --sequence --min-mass 40 /path/to/Sources
 ```
+
+`--sequence` catches a copy-pasted **run of consecutive statements** that the
+default pass misses because it spans a sub-list of a function body, not a single
+subtree (e.g. four statements lifted out of one function into the middle of
+another). It hashes each statement, finds the maximal matching runs across every
+statement/member list, and confirms them with the same consistent-renaming check
+as the exact pass — so these are reported as Type-1/2 clones (a sequence clone is
+an exact/renamed duplication; only the *shape* it spans differs). `--min-mass`
+floors the run's total node count.
 
 `--min-mass` is the precision dial (higher = fewer, larger clones). Exit code is
 `2` when clones are found (handy for CI gating), `0` when clean, and `64`
@@ -159,9 +171,6 @@ last path component. Combines with `--type2` (default) or `--type3`, and exits
   renamed like any other identifier, so very small fragments (a lone
   `let x: Int`) can still match across unrelated types. Raise `--min-mass` to
   filter those.
-- **Sequence clones** (a duplicated *run* of sibling statements that isn't a
-  single subtree) aren't detected yet; that needs a sliding window over
-  `CodeBlockItemList`.
 - **Type-3 clustering is O(n²)** within each anchor-kind/size band. Fine for
   small-to-medium codebases; a large tree would want LSH over the vectors (also
   Deckard's approach) to scale.

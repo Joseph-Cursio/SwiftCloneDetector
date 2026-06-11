@@ -130,18 +130,7 @@ public struct CloneFinder {
     private func signature(of node: Syntax) -> String {
         var parts: [String] = []
         var mapping: [String: Int] = [:]
-        func emit(_ node: Syntax) {
-            if let token = node.as(TokenSyntax.self) {
-                parts.append(normalization.consistentText(for: token, mapping: &mapping))
-                return
-            }
-            parts.append("(\(node.kind)")
-            for child in node.children(viewMode: .sourceAccurate) {
-                emit(child)
-            }
-            parts.append(")")
-        }
-        emit(node)
+        Structure.appendSignature(of: node, normalization: normalization, into: &parts, mapping: &mapping)
         return parts.joined(separator: " ")
     }
 

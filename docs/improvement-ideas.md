@@ -51,12 +51,21 @@ unit tests and an end-to-end test that watches a clone disappear under
 the analysis — a `TaskGroup` over file reads/parses before the serial analysis
 stage would cut wall-clock on large trees with zero change to results.
 
-### 6. Sequence clones
+### 6. Sequence clones ✅
 
-The duplicated-run-of-sibling-statements case the README already flags as
-not-yet-detected. A sliding window over `CodeBlockItemList` is the natural
-follow-on and probably the most common real-world copy-paste shape currently
-missed (people copy a *block*, not a whole function).
+`--sequence` (`SequenceCloneFinder`) detects a duplicated *run* of consecutive
+statements or members that spans a sub-list of a `CodeBlockItemList` /
+`MemberBlockItemList` rather than a single subtree — the most common real-world
+copy-paste shape the subtree pass misses. Each item is hashed; matching runs are
+found by recursively grouping item positions by hash and keeping each maximal
+(left- and right-maximal) run, then confirmed with the same consistent-renaming
+signature as `CloneFinder` (so Type-2 reuse must match across the whole run) and
+filtered for overlap/mass. Reported as Type-1/2. The shared hash/signature logic
+was extracted into `Structure` and reused by both finders.
+
+Worst case is O(n²) within a hash bucket (same band as Type-3); typical input is
+near-linear. A future refinement could expose `--min-sequence-items` and use a
+suffix-array of statement hashes for guaranteed-linear maximal-repeat finding.
 
 ## Low / housekeeping
 

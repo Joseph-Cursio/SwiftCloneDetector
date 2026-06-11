@@ -17,29 +17,30 @@ import Foundation
 import SwiftCloneDetectorKit
 import Testing
 
+// Fixture functions, each large enough to clear the default 20-node min-mass.
+// File-scoped so they don't count against the suite's type-body length.
+private let kDupOne = """
+func scale(_ value: Int) -> Int {
+    let doubled = value * 2
+    let shifted = doubled + 100
+    let clamped = max(0, min(shifted, 9999))
+    return clamped
+}
+"""
+
+private let kDupTwo = """
+func combine(_ items: [String]) -> String {
+    var result = ""
+    for item in items {
+        result += item
+        result += ","
+    }
+    return result
+}
+"""
+
 @Suite("Integration", .serialized)
 struct IntegrationTests {
-    // A function large enough to clear the default 20-node min-mass.
-    private let dupOne = """
-    func scale(_ value: Int) -> Int {
-        let doubled = value * 2
-        let shifted = doubled + 100
-        let clamped = max(0, min(shifted, 9999))
-        return clamped
-    }
-    """
-
-    private let dupTwo = """
-    func combine(_ items: [String]) -> String {
-        var result = ""
-        for item in items {
-            result += item
-            result += ","
-        }
-        return result
-    }
-    """
-
     // MARK: Fixture + capture helpers
 
     private func withTree(_ files: [String: String], _ body: (URL) throws -> Void) throws {
@@ -110,7 +111,7 @@ struct IntegrationTests {
 
     @Test("reports a planted clone and exits 2")
     func findsClone() throws {
-        try withTree(["a.swift": dupOne, "b.swift": dupOne]) { root in
+        try withTree(["a.swift": kDupOne, "b.swift": kDupOne]) { root in
             let result = try run([root.path])
             #expect(result.exit == 2)
             #expect(result.output.contains("Found 1 Type-1/2 clone class"))
@@ -119,7 +120,7 @@ struct IntegrationTests {
 
     @Test("a clean tree exits 0")
     func cleanTree() throws {
-        try withTree(["a.swift": dupOne, "b.swift": dupTwo]) { root in
+        try withTree(["a.swift": kDupOne, "b.swift": kDupTwo]) { root in
             let result = try run([root.path])
             #expect(result.exit == nil)
             #expect(result.output.contains("No Type-1/2 clones found"))
@@ -136,7 +137,7 @@ struct IntegrationTests {
     @Test("a single file path is scanned, not just directories")
     func singleFilePath() throws {
         // Two identical functions in one file form a clone within that file.
-        try withTree(["pair.swift": dupOne + "\n" + dupOne]) { root in
+        try withTree(["pair.swift": kDupOne + "\n" + kDupOne]) { root in
             let result = try run([root.appendingPathComponent("pair.swift").path])
             #expect(result.exit == 2)
         }
@@ -146,7 +147,7 @@ struct IntegrationTests {
 
     @Test("--format json emits a parseable document")
     func jsonFormat() throws {
-        try withTree(["a.swift": dupOne, "b.swift": dupOne]) { root in
+        try withTree(["a.swift": kDupOne, "b.swift": kDupOne]) { root in
             let result = try run(["--format", "json", root.path])
             #expect(result.exit == 2)
             let parsed = try JSONSerialization.jsonObject(with: Data(result.output.utf8))
@@ -157,7 +158,7 @@ struct IntegrationTests {
 
     @Test("--format sarif emits a 2.1.0 log")
     func sarifFormat() throws {
-        try withTree(["a.swift": dupOne, "b.swift": dupOne]) { root in
+        try withTree(["a.swift": kDupOne, "b.swift": kDupOne]) { root in
             let result = try run(["--format", "sarif", root.path])
             let parsed = try JSONSerialization.jsonObject(with: Data(result.output.utf8))
             let object = try #require(parsed as? [String: Any])
@@ -169,7 +170,7 @@ struct IntegrationTests {
 
     @Test("--write-baseline writes a decodable baseline")
     func writeBaseline() throws {
-        try withTree(["a.swift": dupOne, "b.swift": dupOne]) { root in
+        try withTree(["a.swift": kDupOne, "b.swift": kDupOne]) { root in
             let baselinePath = root.appendingPathComponent("baseline.json").path
             let result = try run(["--write-baseline", baselinePath, root.path])
             #expect(result.exit == nil)
@@ -182,7 +183,7 @@ struct IntegrationTests {
 
     @Test("a baseline suppresses its known clones")
     func baselineSuppresses() throws {
-        try withTree(["a.swift": dupOne, "b.swift": dupOne]) { root in
+        try withTree(["a.swift": kDupOne, "b.swift": kDupOne]) { root in
             let baselinePath = root.appendingPathComponent("baseline.json").path
             _ = try run(["--write-baseline", baselinePath, root.path])
             let result = try run(["--baseline", baselinePath, root.path])
@@ -193,11 +194,11 @@ struct IntegrationTests {
 
     @Test("a baseline still surfaces a new clone")
     func baselineSurfacesNew() throws {
-        try withTree(["a.swift": dupOne, "b.swift": dupOne]) { root in
+        try withTree(["a.swift": kDupOne, "b.swift": kDupOne]) { root in
             let baselinePath = root.appendingPathComponent("baseline.json").path
             _ = try run(["--write-baseline", baselinePath, root.path])
             // Introduce a second, distinct clone class not in the baseline.
-            try write(["c.swift": dupTwo, "d.swift": dupTwo], under: root)
+            try write(["c.swift": kDupTwo, "d.swift": kDupTwo], under: root)
             let result = try run(["--baseline", baselinePath, root.path])
             #expect(result.exit == 2)
         }
@@ -205,7 +206,7 @@ struct IntegrationTests {
 
     @Test("a missing baseline file is a usage error")
     func missingBaseline() throws {
-        try withTree(["a.swift": dupOne, "b.swift": dupOne]) { root in
+        try withTree(["a.swift": kDupOne, "b.swift": kDupOne]) { root in
             let message = runErrorMessage(["--baseline", root.appendingPathComponent("nope.json").path, root.path])
             #expect(message?.contains("could not read baseline file") == true)
         }
@@ -213,7 +214,7 @@ struct IntegrationTests {
 
     @Test("a corrupt baseline file is a usage error")
     func corruptBaseline() throws {
-        try withTree(["a.swift": dupOne, "b.swift": dupOne, "bad.json": "not json"]) { root in
+        try withTree(["a.swift": kDupOne, "b.swift": kDupOne, "bad.json": "not json"]) { root in
             let message = runErrorMessage([
                 "--baseline", root.appendingPathComponent("bad.json").path, root.path
             ])
@@ -226,9 +227,9 @@ struct IntegrationTests {
     @Test("cross-project flags a hoist candidate and exits 2")
     func crossProjectHoist() throws {
         try withTree([
-            "appA/File.swift": dupOne,
-            "appB/File.swift": dupOne,
-            "lib/Lib.swift": dupTwo
+            "appA/File.swift": kDupOne,
+            "appB/File.swift": kDupOne,
+            "lib/Lib.swift": kDupTwo
         ]) { root in
             let result = try run([
                 "--cross-project",
@@ -243,7 +244,7 @@ struct IntegrationTests {
 
     @Test("cross-project with a single root is a usage error")
     func crossProjectTooFewRoots() throws {
-        try withTree(["appA/File.swift": dupOne]) { root in
+        try withTree(["appA/File.swift": kDupOne]) { root in
             let message = runErrorMessage(["--cross-project", root.appendingPathComponent("appA").path])
             #expect(message?.contains("at least two project roots") == true)
         }
@@ -258,10 +259,10 @@ struct IntegrationTests {
     @Test("discovery skips build artifacts and honours a name glob")
     func excludeByName() throws {
         try withTree([
-            "Foo.swift": dupOne,
-            "FooTests.swift": dupOne,
-            "Generated/Gen.swift": dupTwo,
-            ".build/Vendor.swift": dupOne
+            "Foo.swift": kDupOne,
+            "FooTests.swift": kDupOne,
+            "Generated/Gen.swift": kDupTwo,
+            ".build/Vendor.swift": kDupOne
         ]) { root in
             // Build artifacts are always skipped, with or without --exclude.
             let all = loadSwiftFiles(paths: [root.path], excluding: [])
@@ -274,7 +275,7 @@ struct IntegrationTests {
 
     @Test("a path glob excludes a whole directory")
     func excludeByPath() throws {
-        try withTree(["Foo.swift": dupOne, "Generated/Gen.swift": dupTwo]) { root in
+        try withTree(["Foo.swift": kDupOne, "Generated/Gen.swift": kDupTwo]) { root in
             let kept = loadSwiftFiles(paths: [root.path], excluding: ["*/Generated/*"])
             #expect(kept.map(basename) == ["Foo.swift"])
         }
@@ -282,11 +283,42 @@ struct IntegrationTests {
 
     @Test("--exclude removes a clone end-to-end")
     func excludeEndToEnd() throws {
-        try withTree(["Foo.swift": dupOne, "FooTests.swift": dupOne]) { root in
+        try withTree(["Foo.swift": kDupOne, "FooTests.swift": kDupOne]) { root in
             let withAll = try run([root.path])
             #expect(withAll.exit == 2)
             let filtered = try run(["--exclude", "*Tests.swift", root.path])
             #expect(filtered.exit == nil)
+        }
+    }
+
+    // MARK: Sequence clones
+
+    @Test("--sequence detects a statement run the subtree pass misses")
+    func sequenceFindsRun() throws {
+        let runSource = """
+        func alpha() {
+            guard ready else { return }
+            let total = base + offset
+            cache[key] = total
+            notify(total, observer)
+            for item in items { drop(item) }
+        }
+        func beta() {
+            counter += 1
+            let total = base + offset
+            cache[key] = total
+            notify(total, observer)
+            print("done")
+        }
+        """
+        try withTree(["pair.swift": runSource]) { root in
+            // The subtree pass finds nothing at this floor — the run isn't a node.
+            let subtree = try run(["--min-mass", "20", root.path])
+            #expect(subtree.exit == nil)
+            // The sequence pass catches the shared run of statements.
+            let sequence = try run(["--sequence", "--min-mass", "20", root.path])
+            #expect(sequence.exit == 2)
+            #expect(sequence.output.contains("Found 1 Type-1/2 clone class"))
         }
     }
 }

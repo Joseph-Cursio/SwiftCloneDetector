@@ -14,17 +14,20 @@ import SwiftSyntax
 /// distinct-identifier floor filters those out where `--min-mass` cannot.
 func distinctIdentifierCount(in node: Syntax) -> Int {
     var seen: Set<String> = []
-    func walk(_ node: Syntax) {
-        if let token = node.as(TokenSyntax.self) {
-            if case .identifier = token.tokenKind {
-                seen.insert(token.text)
-            }
-            return
-        }
-        for child in node.children(viewMode: .sourceAccurate) {
-            walk(child)
-        }
-    }
-    walk(node)
+    collectIdentifiers(in: node, into: &seen)
     return seen.count
+}
+
+/// Add every identifier token in `node` to `seen`. Shared so a caller can union
+/// identifiers across several nodes — e.g. the items of a sequence-clone run.
+func collectIdentifiers(in node: Syntax, into seen: inout Set<String>) {
+    if let token = node.as(TokenSyntax.self) {
+        if case .identifier = token.tokenKind {
+            seen.insert(token.text)
+        }
+        return
+    }
+    for child in node.children(viewMode: .sourceAccurate) {
+        collectIdentifiers(in: child, into: &seen)
+    }
 }
