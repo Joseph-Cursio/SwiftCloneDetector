@@ -35,11 +35,14 @@ clean `0` exit codes are preserved. Baseline I/O failures surface as
 
 ## Medium
 
-### 4. `--exclude` globs
+### 4. `--exclude` globs ✅
 
-File discovery hardcodes build-artifact skipping but gives the user no way to
-exclude their own `*Tests.swift`, generated `*.pb.swift`, or `.snapshot`
-fixtures — all of which are legitimately duplicative and create noise.
+`--exclude GLOB` (repeatable) skips the user's own files on top of the always-on
+build-artifact filter. A glob is matched with `fnmatch` against both the full
+path and the bare file name, with `*` spanning directory separators — so
+`*Tests.swift`, `*.pb.swift` and `*/Generated/*` all work. Covered by discovery
+unit tests and an end-to-end test that watches a clone disappear under
+`--exclude '*Tests.swift'`.
 
 ### 5. Parallel parsing
 

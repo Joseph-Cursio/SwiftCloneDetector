@@ -248,4 +248,45 @@ struct IntegrationTests {
             #expect(message?.contains("at least two project roots") == true)
         }
     }
+
+    // MARK: Exclude globs
+
+    private func basename(_ source: SourceInput) -> String {
+        URL(fileURLWithPath: source.path).lastPathComponent
+    }
+
+    @Test("discovery skips build artifacts and honours a name glob")
+    func excludeByName() throws {
+        try withTree([
+            "Foo.swift": dupOne,
+            "FooTests.swift": dupOne,
+            "Generated/Gen.swift": dupTwo,
+            ".build/Vendor.swift": dupOne
+        ]) { root in
+            // Build artifacts are always skipped, with or without --exclude.
+            let all = loadSwiftFiles(paths: [root.path], excluding: [])
+            #expect(all.map(basename).sorted() == ["Foo.swift", "FooTests.swift", "Gen.swift"])
+
+            let kept = loadSwiftFiles(paths: [root.path], excluding: ["*Tests.swift"])
+            #expect(kept.map(basename).sorted() == ["Foo.swift", "Gen.swift"])
+        }
+    }
+
+    @Test("a path glob excludes a whole directory")
+    func excludeByPath() throws {
+        try withTree(["Foo.swift": dupOne, "Generated/Gen.swift": dupTwo]) { root in
+            let kept = loadSwiftFiles(paths: [root.path], excluding: ["*/Generated/*"])
+            #expect(kept.map(basename) == ["Foo.swift"])
+        }
+    }
+
+    @Test("--exclude removes a clone end-to-end")
+    func excludeEndToEnd() throws {
+        try withTree(["Foo.swift": dupOne, "FooTests.swift": dupOne]) { root in
+            let withAll = try run([root.path])
+            #expect(withAll.exit == 2)
+            let filtered = try run(["--exclude", "*Tests.swift", root.path])
+            #expect(filtered.exit == nil)
+        }
+    }
 }

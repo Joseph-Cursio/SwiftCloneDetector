@@ -67,6 +67,16 @@ filters by *size*, this filters by *unique naming* — useful against
 large-but-repetitive structure (a long `switch`, a chained builder) that clears
 the size floor while being semantically thin. Off by default (`0`).
 
+Build directories (`.build*`, `.swiftpm`, `DerivedData`, `.git`) are always
+skipped. Use `--exclude GLOB` (repeatable) to skip your own files — generated
+code, test scaffolding, fixtures. A glob matches a file's full path or its bare
+name, and `*` spans directory separators, so both `--exclude '*Tests.swift'` and
+`--exclude '*/Generated/*'` work:
+
+```sh
+swift run swift-clone-detector --exclude '*Tests.swift' --exclude '*.pb.swift' Sources
+```
+
 ### Output formats
 
 `--format` selects how results are rendered (all formats share the same exit

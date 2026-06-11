@@ -41,6 +41,7 @@ struct CommandParsingTests {
         #expect(command.type1 == false)
         #expect(command.crossProject == false)
         #expect(command.sharedPaths.isEmpty)
+        #expect(command.excludePatterns.isEmpty)
         #expect(command.baselinePath == nil)
         #expect(command.writeBaselinePath == nil)
         #expect(command.paths == ["Sources"])
@@ -84,6 +85,12 @@ struct CommandParsingTests {
     func repeatableShared() throws {
         let command = try parse(["--cross-project", "--shared", "Lib", "--shared", "Lib2", "App"])
         #expect(command.sharedPaths == ["Lib", "Lib2"])
+    }
+
+    @Test("--exclude is repeatable")
+    func repeatableExclude() throws {
+        let command = try parse(["--exclude", "*Tests.swift", "--exclude", "Generated/*", "Sources"])
+        #expect(command.excludePatterns == ["*Tests.swift", "Generated/*"])
     }
 
     @Test("accepts every output format value", arguments: OutputFormat.allCases)

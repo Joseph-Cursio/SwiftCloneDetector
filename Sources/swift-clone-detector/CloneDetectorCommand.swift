@@ -76,6 +76,15 @@ struct CloneDetectorCommand: ParsableCommand {
     )
     var sharedPaths: [String] = []
 
+    @Option(
+        name: .customLong("exclude"),
+        help: ArgumentHelp(
+            "Skip files whose path or name matches this glob, e.g. '*Tests.swift' (repeatable).",
+            valueName: "glob"
+        )
+    )
+    var excludePatterns: [String] = []
+
     @Option(name: .customLong("format"), help: "Output format: text, json, or sarif.")
     var format: OutputFormat = .text
 
@@ -120,7 +129,7 @@ struct CloneDetectorCommand: ParsableCommand {
         }
 
         let scanPaths = paths.isEmpty ? ["."] : paths
-        let sources = loadSwiftFiles(paths: scanPaths)
+        let sources = loadSwiftFiles(paths: scanPaths, excluding: excludePatterns)
         guard !sources.isEmpty else {
             throw ValidationError("no .swift files found")
         }
@@ -145,7 +154,7 @@ struct CloneDetectorCommand: ParsableCommand {
                 + "(pass consumer paths and optionally --shared)")
         }
 
-        let sources = loadSwiftFiles(paths: paths + sharedPaths)
+        let sources = loadSwiftFiles(paths: paths + sharedPaths, excluding: excludePatterns)
         guard !sources.isEmpty else {
             throw ValidationError("no .swift files found")
         }

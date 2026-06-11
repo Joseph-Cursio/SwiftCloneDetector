@@ -33,7 +33,22 @@ private func isInBuildArtifact(_ relativePath: String) -> Bool {
     }
 }
 
-func loadSwiftFiles(paths: [String]) -> [SourceInput] {
+// A file is excluded when any `--exclude` glob matches its full path or its bare
+// file name. `fnmatch` runs without FNM_PATHNAME, so `*` spans directories —
+// `*Tests.swift` and `*/Generated/*` both work.
+private func isExcluded(_ path: String, patterns: [String]) -> Bool {
+    guard !patterns.isEmpty else {
+        return false
+    }
+    let noFlags: Int32 = 0
+    let matched: Int32 = 0
+    let basename = URL(fileURLWithPath: path).lastPathComponent
+    return patterns.contains { pattern in
+        fnmatch(pattern, path, noFlags) == matched || fnmatch(pattern, basename, noFlags) == matched
+    }
+}
+
+func loadSwiftFiles(paths: [String], excluding patterns: [String]) -> [SourceInput] {
     let fileManager = FileManager.default
     var swiftFilePaths: [String] = []
 
@@ -47,9 +62,11 @@ func loadSwiftFiles(paths: [String]) -> [SourceInput] {
                 guard item.hasSuffix(".swift") else { continue }
                 if isInBuildArtifact(item) { continue }
                 let separator = path.hasSuffix("/") ? "" : "/"
-                swiftFilePaths.append(path + separator + item)
+                let fullPath = path + separator + item
+                if isExcluded(fullPath, patterns: patterns) { continue }
+                swiftFilePaths.append(fullPath)
             }
-        } else if path.hasSuffix(".swift") {
+        } else if path.hasSuffix(".swift"), !isExcluded(path, patterns: patterns) {
             swiftFilePaths.append(path)
         }
     }
