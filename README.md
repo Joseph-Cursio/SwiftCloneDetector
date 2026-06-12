@@ -1,10 +1,16 @@
 # swift-clone-detector
 
 [![Why this project](https://img.shields.io/badge/docs-why%20this%20project-blue)](docs/why-this-project.md)
+[![vs PMD CPD](https://img.shields.io/badge/docs-vs%20PMD%20CPD-blue)](docs/pmd-comparison.md)
 
 A Type-1/2/3 Swift clone detector built on SwiftSyntax. It finds the copy-paste
 duplication that token-based tools (PMD/CPD) handle poorly on Swift, by matching
 **AST structure** instead of token runs.
+
+A head-to-head on three real, recently de-duplicated repos backs this up:
+[**swift-clone-detector vs PMD CPD**](docs/pmd-comparison.md). In each, the
+verbatim pass matches PMD's count while `--type2` adds the renamed clones CPD is
+blind to — over files PMD sometimes can't even tokenize.
 
 SwiftPM package; depends on swift-syntax (parsing) and swift-argument-parser
 (the CLI).
