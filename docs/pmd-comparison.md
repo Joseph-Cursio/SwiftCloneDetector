@@ -8,6 +8,23 @@ Three case studies, each on the pre-refactor state of a repo that was recently
 de-duplicated by hand — so the duplication is still present and the findings can
 be checked against the cleanup commits that followed.
 
+## Summary
+
+Across all three repos, the detector's verbatim pass (`--type1`, calibrated so it
+matches PMD's block count) agrees with PMD — and its `--type2` pass then adds the
+renamed clones CPD is blind to, over files PMD sometimes can't even tokenize.
+
+| Repo | Files | min-tokens 100 ≈ | PMD blocks | `--type1` | `--type2` (renamed Δ) | PMD skipped |
+|---|--:|---|--:|--:|--:|--:|
+| SwiftAssist | 358 | min-mass 120 | 10 | 11 | **64** (+53) | **13** |
+| SwiftLintRuleStudio | 172 | min-mass 160 | 5 | 5 | **10** (+5) | 2 |
+| SwiftProjectLint | 357 | min-mass 116 | 22 | 22 | **72** (+50) | 0 |
+
+Two things hold every time: verbatim counts line up (cross-validating both tools),
+and `--type2` is a strict superset that surfaces 5–53 additional renamed clones.
+The threshold mapping and lexer-skip cost both vary per repo — see the
+[Caveats](#caveats-read-honestly).
+
 ## Case study 1 — SwiftAssist
 
 ### Setup
