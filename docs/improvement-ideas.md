@@ -80,12 +80,20 @@ suffix-array of statement hashes for guaranteed-linear maximal-repeat finding.
 
 ## Low / housekeeping
 
-### 7. `.swiftlint.yml.*.backup` clutter
+### 7. `.swiftlint.yml.*.backup` clutter ✅
 
-35 backup files sit in the working dir. They're correctly gitignored
-(`*.backup`), so this is just on-disk clutter from some snapshotting tool — safe
-to `rm`. Worth checking *what's* generating them, though; that's a lot of
-snapshots.
+Removed the 35 backup files (gitignored, so no tracked change). They were
+intermediate config snapshots, not duplicates of the final config — the tracked
+`.swiftlint.yml` has the full curated rule set; the backups captured earlier,
+smaller rule sets.
+
+**Source:** SwiftLintRuleStudio's Config Version History feature, which writes
+`.swiftlint.yml.<unix-timestamp>.backup` before each rule edit
+(`ConfigVersionHistoryViewModel`). The Jun 11 burst — 35 snapshots in four
+minutes — was that tool building up this repo's rule set, one toggle at a time.
+They'll reappear if SwiftLintRuleStudio is pointed at this repo again; the clean
+fix is on that side (write snapshots to a dedicated history dir or `/tmp`, as its
+own tests already do), not here.
 
 ### 8. Output-format tests ✅ (JSON/SARIF)
 
