@@ -4,7 +4,7 @@ A head-to-head on real Swift code, comparing this detector against the tool the
 README contrasts it with: PMD's Copy/Paste Detector (CPD), a mature token-based
 duplication finder.
 
-Two case studies, each on the pre-refactor state of a repo that was recently
+Three case studies, each on the pre-refactor state of a repo that was recently
 de-duplicated by hand — so the duplication is still present and the findings can
 be checked against the cleanup commits that followed.
 
@@ -137,14 +137,67 @@ The same shape as case 1, on a smaller, cleaner codebase:
   comment notes), but neither contained detected duplication here — no
   blind-spot cost this time, unlike SwiftAssist's `ExecTools.swift`.
 
+## Case study 3 — SwiftProjectLint
+
+### Setup
+
+- **Target:** SwiftProjectLint at commit `8501ab3` — the parent of the `ab75882`
+  visitor-extraction batch (Jun 8: "Extract CrossFileVisitorBase; migrate 15
+  cross-file visitors", `TestMissingMacroVisitorBase`, `SuppressionVisitorBase`,
+  `MainActorMissingVisitorBase`, …). All that duplicated visitor boilerplate is
+  still present at this state.
+- **Scope:** the first-party production sources — `Sources/App`, `Sources/Core`,
+  and seven `Packages/*/Sources/*` directories (the bulk being 249 lint-rule
+  files under `SwiftProjectLintRules`). 357 Swift files.
+- **Tools:** PMD CPD 7.25.0 (`--minimum-tokens 100`) vs swift-clone-detector,
+  calibrated to `--min-mass 116` (where `--type1` exactly hits PMD's count).
+
+### Results (at the calibrated min-mass 116)
+
+| | PMD CPD | `--type1` (verbatim) | `--type2` (default) |
+|---|--:|--:|--:|
+| Duplications found | **22** | 22 | **72** |
+| Files skipped / unparsed | **0** | 0 | 0 |
+
+### Findings
+
+The same shape as cases 1–2, with the sharpest numbers of the three:
+
+- **Verbatim agreement is exact.** PMD 22 = detector `--type1` 22, over the same
+  fragments — and they map straight onto the extraction commits: the
+  `TestMissingAssertion` ↔ `TestMissingExpect` ↔ `TestMissingRequire` visitor trio
+  (~lines 119–147, folded into `TestMissingMacroVisitorBase`, commit `83cb749`)
+  and the `SingletonUsage` ↔ `AccessingImplementationDetails` ↔
+  `DirectInstantiation` cross-file visitors (→ `CrossFileVisitorBase`, `6f322a3`).
+- **The renamed edge is the largest of the three runs: +50** (`--type2` = 72).
+  Concrete example — the `PatternRegistrarProtocol` boilerplate, the same struct
+  shape differing only by rule name, visitor type, severity, category and prose:
+
+  ```swift
+  // IdempotencyViolation.swift                 // ControlMissingAccessibilityLabel.swift
+  struct IdempotencyViolation: …Protocol {      struct ControlMissingAccessibilityLabel: …Protocol {
+    var pattern: SyntaxPattern {                  var pattern: SyntaxPattern {
+      SyntaxPattern(name: .idempotencyViolation,    SyntaxPattern(name: .controlMissing…,
+        visitor: IdempotencyViolationVisitor.self,    visitor: ControlMissing…Visitor.self,
+        severity: .error, category: .idempotency,     severity: .warning, category: .accessibility,
+        messageTemplate: …, suggestion: …, …)         messageTemplate: …, suggestion: …, …) } }
+  ```
+
+  Token-based CPD sees two different token streams; the detector matches them
+  under Type-2.
+- **Zero lexer blind spots.** PMD skipped **0 of 357** files — no backtick-escaped
+  operators or em-dashes to choke on (cleaner than SwiftAssist's 13 skips). The
+  reliability gap didn't bite here; the structural-duplication gap did, hard.
+
 ## Caveats (read honestly)
 
 - **Thresholds aren't equivalent, and the mapping is per-repo.** Tokens (CPD) vs
   AST-node mass (this tool) were calibrated to align the *verbatim* counts, not
   to claim a raw multiplier. The mapping even differs between codebases —
-  min-tokens 100 ≈ min-mass 120 for SwiftAssist but ≈ 160 for
-  SwiftLintRuleStudio, because SwiftUI view code has a different token-to-node
-  density than actor/CLI code. Recalibrate per project.
+  min-tokens 100 ≈ min-mass 120 for SwiftAssist, 116 for SwiftProjectLint, and
+  160 for SwiftLintRuleStudio, because SwiftUI view code has a different
+  token-to-node density than actor/CLI or SwiftSyntax-visitor code. Recalibrate
+  per project.
 - **The two tools weight "size" differently.** Token count and AST-node mass rank
   individual blocks differently even when overall counts align. In case 2, PMD
   flagged the `ViolationStorageActor` self-duplication (a run of repetitive
@@ -155,10 +208,10 @@ The same shape as case 1, on a smaller, cleaner codebase:
   structural duplication, but whether each instance should be extracted is a
   judgment call. They are, however, duplications CPD definitionally cannot show
   you.
-- **The lexer blind-spot cost was modest in both runs** — one missed duplication
-  in SwiftAssist, none in SwiftLintRuleStudio — but the reliability gap (dropping
-  whole files) is real and would bite harder on code that leans on the syntax PMD
-  chokes on.
+- **The lexer blind-spot cost varied by repo** — one missed duplication in
+  SwiftAssist (13 files skipped), none in SwiftLintRuleStudio (2 skipped) or
+  SwiftProjectLint (0 skipped) — but the reliability gap (dropping whole files)
+  is real and would bite harder on code that leans on the syntax PMD chokes on.
 
 ## Reproduce
 
@@ -180,4 +233,13 @@ pmd cpd --minimum-tokens 100 --language swift --skip-lexical-errors \
   --dir UI --dir App --dir SwiftLintRuleStudioCore/Sources --format text
 swift-clone-detector --type1 --min-mass 160 UI App SwiftLintRuleStudioCore/Sources  # verbatim
 swift-clone-detector            --min-mass 160 UI App SwiftLintRuleStudioCore/Sources  # + renamed
+
+# Case 3 — SwiftProjectLint (multi-package; scan the production source dirs)
+git -C SwiftProjectLint worktree add --detach /tmp/spl ab75882~1
+cd /tmp/spl
+DIRS="Sources/App Sources/Core $(ls -d Packages/*/Sources/*)"
+pmd cpd --minimum-tokens 100 --language swift --no-fail-on-error \
+  $(for d in $DIRS; do printf -- '--dir %s ' "$d"; done) --format text
+swift-clone-detector --type1 --min-mass 116 $DIRS   # verbatim
+swift-clone-detector            --min-mass 116 $DIRS   # + renamed
 ```
