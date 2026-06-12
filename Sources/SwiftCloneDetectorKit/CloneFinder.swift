@@ -6,7 +6,6 @@
 //  bucket by hash → confirm exact matches → drop subsumed sub-clones.
 //
 
-import SwiftParser
 import SwiftSyntax
 
 /// The Type-1/2 exact clone detector: structurally identical subtrees, optionally
@@ -46,13 +45,11 @@ public struct CloneFinder {
     /// Find all Type-1/2 clone classes across the given sources, largest first
     /// and with sub-clones subsumed by the larger clones that contain them.
     public func find(in sources: [SourceInput]) -> [CloneClass] {
+        let parsed = parseSources(sources)
+        let converters = parsed.map(\.converter)
         var fragments: [Fragment] = []
-        var converters: [SourceLocationConverter] = []
-
-        for (index, source) in sources.enumerated() {
-            let tree = Parser.parse(source: source.text)
-            converters.append(SourceLocationConverter(fileName: source.path, tree: tree))
-            collect(Syntax(tree), fileIndex: index, into: &fragments)
+        for source in parsed {
+            collect(Syntax(source.tree), fileIndex: source.index, into: &fragments)
         }
 
         // Bucket by structural hash (fast), then confirm exact matches within

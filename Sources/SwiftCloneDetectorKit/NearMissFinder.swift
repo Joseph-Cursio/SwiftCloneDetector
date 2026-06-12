@@ -12,7 +12,6 @@
 //  only the *near*, not the identical.
 //
 
-import SwiftParser
 import SwiftSyntax
 
 /// The Type-3 near-miss clone detector: copies that drifted by a few inserted,
@@ -59,13 +58,11 @@ public struct NearMissFinder {
     /// Find all Type-3 near-miss clone classes across the given sources, largest
     /// first and with nested sub-clones subsumed.
     public func find(in sources: [SourceInput]) -> [CloneClass] {
+        let parsed = parseSources(sources)
+        let converters = parsed.map(\.converter)
         var fragments: [Fragment] = []
-        var converters: [SourceLocationConverter] = []
-
-        for (index, source) in sources.enumerated() {
-            let tree = Parser.parse(source: source.text)
-            converters.append(SourceLocationConverter(fileName: source.path, tree: tree))
-            collect(Syntax(tree), fileIndex: index, into: &fragments)
+        for source in parsed {
+            collect(Syntax(source.tree), fileIndex: source.index, into: &fragments)
         }
 
         let clusters = cluster(fragments)
@@ -77,6 +74,7 @@ public struct NearMissFinder {
     private func collect(_ root: Syntax, fileIndex: Int, into fragments: inout [Fragment]) {
         // Tokens count toward `mass` (size) but not the vector, which stays a
         // purely structural fingerprint of composite node kinds.
+        @discardableResult
         func walk(_ node: Syntax) -> (vector: CharacteristicVector, mass: Int) {
             if node.is(TokenSyntax.self) {
                 return (CharacteristicVector(), 1)

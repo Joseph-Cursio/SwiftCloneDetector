@@ -178,4 +178,28 @@ struct CloneFinderTests {
         #expect(classes.count == 1)
         #expect(classes.first?.instances.count == 2)
     }
+
+    @Test("parses many files concurrently and maps each clone to the right file")
+    func concurrentParsingPreservesFileMapping() {
+        let shared = """
+        func shared() {
+            let total = base + offset
+            cache[key] = total
+            persist(total)
+        }
+        """
+        // 12 files: even indices share `shared`, odd indices are unique.
+        let sources = (0..<12).map { index -> SourceInput in
+            let text = index.isMultiple(of: 2) ? shared : "func unique\(index)() { let value = \(index) }"
+            return source("file\(index).swift", text)
+        }
+
+        let classes = CloneFinder(normalization: .type1, minMass: 10).find(in: sources)
+        let cloneOfShared = classes.first { $0.instances.count == 6 }
+        #expect(cloneOfShared != nil)
+        // Every instance must land in an even-numbered file — proof that the
+        // concurrent parse kept each file's results mapped to its own path.
+        let paths = Set(cloneOfShared?.instances.map(\.path) ?? [])
+        #expect(paths == Set((0..<12).filter { $0.isMultiple(of: 2) }.map { "file\($0).swift" }))
+    }
 }

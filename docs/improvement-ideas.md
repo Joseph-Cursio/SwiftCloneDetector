@@ -44,12 +44,23 @@ path and the bare file name, with `*` spanning directory separators — so
 unit tests and an end-to-end test that watches a clone disappear under
 `--exclude '*Tests.swift'`.
 
-### 5. Parallel parsing
+### 5. Parallel parsing ✅
 
-`loadSwiftFiles` parses sequentially and the finder is `@MainActor`. Parsing
-(the expensive SwiftSyntax pass) is embarrassingly parallel and independent of
-the analysis — a `TaskGroup` over file reads/parses before the serial analysis
-stage would cut wall-clock on large trees with zero change to results.
+All three finders parse via a shared `parseSources` helper that runs
+`Parser.parse` across every file concurrently (`DispatchQueue.concurrentPerform`)
+before the serial collect + match stages — parsing is the expensive,
+independent, embarrassingly parallel pass. `find` stays synchronous, so the CLI
+needed no async change. Results are unchanged (the existing finder suites are the
+regression guard, plus a 12-file test asserting each clone maps back to the right
+file path).
+
+Swift 6 strict concurrency makes this delicate: SwiftSyntax trees aren't
+`Sendable`, so the parsed result is carried in an `@unchecked Sendable`
+`ParsedSource` (sound — trees are immutable, parsed independently, and the
+concurrent pass is a barrier before any tree is read) and the result buffer is a
+`nonisolated(unsafe)` pointer written only at distinct indices. The collect pass
+is still serial; parallelizing it too would need the same care for the
+`Syntax`-holding fragment types.
 
 ### 6. Sequence clones ✅
 

@@ -13,7 +13,6 @@
 //  the *shape* it spans (a run, not a subtree) differs.
 //
 
-import SwiftParser
 import SwiftSyntax
 
 /// Detects duplicated runs of consecutive sibling statements or members — clones
@@ -80,13 +79,11 @@ public struct SequenceCloneFinder {
     /// Find all sequence-clone classes across the given sources, largest first
     /// and with runs subsumed by larger runs that contain them.
     public func find(in sources: [SourceInput]) -> [CloneClass] {
+        let parsed = parseSources(sources)
+        let converters = parsed.map(\.converter)
         var lists: [[Item]] = []
-        var converters: [SourceLocationConverter] = []
-
-        for (index, source) in sources.enumerated() {
-            let tree = Parser.parse(source: source.text)
-            converters.append(SourceLocationConverter(fileName: source.path, tree: tree))
-            collectLists(Syntax(tree), fileIndex: index, into: &lists)
+        for source in parsed {
+            collectLists(Syntax(source.tree), fileIndex: source.index, into: &lists)
         }
 
         let runClasses = detectRuns(in: lists)
