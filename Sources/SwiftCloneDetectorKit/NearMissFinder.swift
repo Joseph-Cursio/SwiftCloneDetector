@@ -17,12 +17,11 @@ import SwiftSyntax
 /// The Type-3 near-miss clone detector: copies that drifted by a few inserted,
 /// removed, or changed statements, clustered by characteristic-vector similarity.
 public struct NearMissFinder {
+    // A significant subtree recorded during the walk: where it is, plus the
+    // characteristic vector it is clustered by and the signature that excludes
+    // exact copies.
     struct Fragment {
-        let fileIndex: Int
-        let node: Syntax
-        let mass: Int
-        let startOffset: Int
-        let endOffset: Int
+        let span: FragmentSpan
         let vector: CharacteristicVector
         let signature: String
     }
@@ -133,11 +132,7 @@ public struct NearMissFinder {
                minDistinctIdentifiers == 0 || distinctIdentifierCount(in: node) >= minDistinctIdentifiers,
                lineSpan(of: node, in: converter) >= minLines {
                 fragments.append(Fragment(
-                    fileIndex: fileIndex,
-                    node: node,
-                    mass: mass,
-                    startOffset: node.positionAfterSkippingLeadingTrivia.utf8Offset,
-                    endOffset: node.endPositionBeforeTrailingTrivia.utf8Offset,
+                    span: FragmentSpan(fileIndex: fileIndex, node: node, mass: mass),
                     vector: vector,
                     signature: signature(of: node)
                 ))
@@ -173,46 +168,38 @@ public struct NearMissFinder {
         converters: [SourceLocationConverter],
         scoring: FragmentScoring
     ) -> [CloneClass] {
-        // Largest clones first, so nested sub-clones get subsumed.
-        let ordered = clusters.sorted { lhs, rhs in
-            (lhs.map { fragments[$0].mass }.max() ?? 0) > (rhs.map { fragments[$0].mass }.max() ?? 0)
-        }
-
-        var claimed: [Int: [(start: Int, end: Int)]] = [:]
-        var result: [CloneClass] = []
-
-        func isInsideClaimedRange(_ fragment: Fragment) -> Bool {
-            guard let ranges = claimed[fragment.fileIndex] else {
-                return false
+        // Largest clones first, so nested sub-clones get subsumed. A near-miss
+        // cluster's members differ in size, so the largest one sets its mass.
+        let ordered = clusters
+            .map { cluster -> (order: CloneOrder, cluster: [Int]) in
+                let spans = cluster.map { fragments[$0].span }
+                return (CloneOrder(mass: spans.map(\.mass).max() ?? 0, spans: spans), cluster)
             }
-            return ranges.contains { fragment.startOffset >= $0.start && fragment.endOffset <= $0.end }
-        }
+            .sorted { $0.order < $1.order }
+            .map(\.cluster)
+
+        var claimed = ClaimedRanges()
+        var result: [CloneClass] = []
 
         for cluster in ordered {
             let memberIndices = withoutSelfOverlap(cluster, fragments: fragments)
             let members = memberIndices.map { fragments[$0] }
             guard members.count >= Self.minimumClusterSize else { continue }
-            if members.allSatisfy(isInsideClaimedRange) { continue }
+            if members.allSatisfy({ claimed.covers($0.span) }) { continue }
 
             for member in members {
-                claimed[member.fileIndex, default: []].append((member.startOffset, member.endOffset))
+                claimed.claim(member.span)
             }
 
-            let instances = members.map { member -> CloneInstance in
-                let converter = converters[member.fileIndex]
-                let start = converter.location(for: member.node.positionAfterSkippingLeadingTrivia)
-                let end = converter.location(for: member.node.endPositionBeforeTrailingTrivia)
-                return CloneInstance(
-                    path: sources[member.fileIndex].path,
-                    startLine: start.line,
-                    startColumn: start.column,
-                    endLine: end.line,
-                    endColumn: end.column
+            let instances = members.map { member in
+                member.span.cloneInstance(
+                    path: sources[member.span.fileIndex].path,
+                    converter: converters[member.span.fileIndex]
                 )
             }
 
             result.append(CloneClass(
-                mass: members.map(\.mass).max() ?? 0,
+                mass: members.map(\.span.mass).max() ?? 0,
                 instances: instances,
                 similarity: minimumPairwiseSimilarity(memberIndices, scoring: scoring),
                 pass: .nearMiss
@@ -248,12 +235,7 @@ public struct NearMissFinder {
         members.filter { index in
             let candidate = fragments[index]
             return !members.contains { otherIndex in
-                let other = fragments[otherIndex]
-                return other.fileIndex == candidate.fileIndex
-                    && other.startOffset <= candidate.startOffset
-                    && other.endOffset >= candidate.endOffset
-                    && (other.startOffset < candidate.startOffset
-                        || other.endOffset > candidate.endOffset)
+                candidate.span.range.isStrictlyContained(in: fragments[otherIndex].span.range)
             }
         }
     }

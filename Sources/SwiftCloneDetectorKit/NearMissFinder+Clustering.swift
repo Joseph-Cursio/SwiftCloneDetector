@@ -36,7 +36,7 @@ extension NearMissFinder {
         // kinds only matches a parent to the very child nested inside it.
         var byKind: [SyntaxKind: [Int]] = [:]
         for index in 0..<count {
-            byKind[fragments[index].node.kind, default: []].append(index)
+            byKind[fragments[index].span.kind, default: []].append(index)
         }
 
         // Size prune: for Dice ≥ t the smaller vector must be at least
@@ -113,18 +113,12 @@ extension NearMissFinder {
         fragments: [Fragment],
         scoring: FragmentScoring
     ) -> [[Int]] {
-        // Ties broken on position so a run is reproducible.
-        let ordered = component.sorted { lhs, rhs in
-            let left = fragments[lhs]
-            let right = fragments[rhs]
-            if left.mass != right.mass {
-                return left.mass > right.mass
-            }
-            if left.fileIndex != right.fileIndex {
-                return left.fileIndex < right.fileIndex
-            }
-            return left.startOffset < right.startOffset
-        }
+        // Biggest first, ties broken on position so a run is reproducible — the
+        // same order a report uses, applied to one fragment at a time.
+        let ordered = component
+            .map { (order: CloneOrder(fragments[$0].span), index: $0) }
+            .sorted { $0.order < $1.order }
+            .map(\.index)
 
         var classes: [[Int]] = []
         for index in ordered {

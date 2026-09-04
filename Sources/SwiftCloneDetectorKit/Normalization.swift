@@ -9,6 +9,12 @@
 
 import SwiftSyntax
 
+/// Which leaf tokens the detector treats as interchangeable, and so which clone
+/// type it catches: `.type1` matches exact copies, `.type2` also matches copies
+/// whose identifiers and literals were renamed.
+///
+/// Structure is always compared exactly — this only controls how the leaves of a
+/// subtree are canonicalized before hashing.
 public struct Normalization: Sendable {
     /// Exact copy-paste only (modulo whitespace/comments — trivia isn't hashed).
     public static let type1 = Self(renameIdentifiers: false, renameLiterals: false)
