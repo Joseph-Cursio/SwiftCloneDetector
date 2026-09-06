@@ -46,16 +46,21 @@ Deckard-style **characteristic vector** instead:
 
 1. Reduce each significant subtree to a multiset of node-kind counts — a
    fingerprint that only *shifts* when a few nodes are added or removed.
-2. Cluster subtrees of the **same anchor kind** whose vectors score ≥
-   `--similarity` (Sørensen–Dice) via union-find. Exact copies (identical
-   signature) are excluded — they belong to the Type-1/2 pass.
-3. **Drop self-overlap** — a fragment's own parent is also a fragment, and where
+2. **Weight each kind by how rare it is** across this run's fragments,
+   `1 + ln(N / df)`. Unweighted, a construct every fragment carries counts as
+   much as one only a few do, and two SwiftUI bodies rendering entirely
+   different things score alike because both are mostly `FunctionCallExpr` and
+   `MemberAccessExpr`. `--uniform-weighting` restores the flat scoring.
+3. Cluster subtrees of the **same anchor kind** whose vectors score ≥
+   `--similarity` (weighted Sørensen–Dice) via union-find. Exact copies
+   (identical signature) are excluded — they belong to the Type-1/2 pass.
+4. **Drop self-overlap** — a fragment's own parent is also a fragment, and where
    the parent adds only a wrapper (`while`, `do`, `Task { }` around one big
    statement) the two are similar enough to cluster together. Members contained
    inside another member of the *same* cluster are discarded, keeping the
    largest. Type-1/2 needs no such step: a parent and child never share an exact
    signature.
-4. Subsume nested clusters, same as above, and report each class with its
+5. Subsume nested clusters, same as above, and report each class with its
    minimum pairwise similarity.
 
 ## Usage
