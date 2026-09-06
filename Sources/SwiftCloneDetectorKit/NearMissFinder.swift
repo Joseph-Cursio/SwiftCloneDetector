@@ -208,7 +208,8 @@ public struct NearMissFinder {
         }
 
         for cluster in ordered {
-            let members = cluster.map { fragments[$0] }
+            let members = withoutSelfOverlap(cluster.map { fragments[$0] })
+            guard members.count >= Self.minimumClusterSize else { continue }
             if members.allSatisfy(isInsideClaimedRange) { continue }
 
             for member in members {
@@ -235,6 +236,41 @@ public struct NearMissFinder {
             ))
         }
         return result
+    }
+
+    /// Members that are not contained inside another member of the *same* cluster.
+    ///
+    /// The subsumption above is cross-cluster: it drops a cluster whose members all sit inside
+    /// ranges a larger clone already claimed. It says nothing about two members of one cluster
+    /// overlapping each other, and they can — a fragment and its own parent land together when
+    /// the parent adds only a wrapper that near-miss similarity tolerates:
+    ///
+    /// ```
+    /// Clone #2 — 2 instances, 97% similar:
+    ///   MLXBackend.swift:304-334
+    ///   MLXBackend.swift:303-335
+    /// ```
+    ///
+    /// The difference is `while !buffer.isEmpty {` and its closing brace. That is one region
+    /// matched against itself at two granularities, not a copy of anything, and it is worse than
+    /// noise: it inflates the duplicated-line total (which counts every instance) to the point of
+    /// meaninglessness — 63,141 lines reported against a 66,469-line project, 95% duplication.
+    ///
+    /// Keeps the largest, which is the reading a caller wants: the outer fragment is where the
+    /// duplication would have to be resolved if it were real.
+    ///
+    /// Containment is *strict*, so two members with identical ranges in one file do not remove
+    /// each other and leave the cluster empty.
+    private func withoutSelfOverlap(_ members: [Fragment]) -> [Fragment] {
+        members.filter { candidate in
+            !members.contains { other in
+                other.fileIndex == candidate.fileIndex
+                    && other.startOffset <= candidate.startOffset
+                    && other.endOffset >= candidate.endOffset
+                    && (other.startOffset < candidate.startOffset
+                        || other.endOffset > candidate.endOffset)
+            }
+        }
     }
 
     private func minimumPairwiseSimilarity(_ members: [Fragment]) -> Double {

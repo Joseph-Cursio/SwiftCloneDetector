@@ -49,7 +49,13 @@ Deckard-style **characteristic vector** instead:
 2. Cluster subtrees of the **same anchor kind** whose vectors score ≥
    `--similarity` (Sørensen–Dice) via union-find. Exact copies (identical
    signature) are excluded — they belong to the Type-1/2 pass.
-3. Subsume nested clusters, same as above, and report each class with its
+3. **Drop self-overlap** — a fragment's own parent is also a fragment, and where
+   the parent adds only a wrapper (`while`, `do`, `Task { }` around one big
+   statement) the two are similar enough to cluster together. Members contained
+   inside another member of the *same* cluster are discarded, keeping the
+   largest. Type-1/2 needs no such step: a parent and child never share an exact
+   signature.
+4. Subsume nested clusters, same as above, and report each class with its
    minimum pairwise similarity.
 
 ## Usage
