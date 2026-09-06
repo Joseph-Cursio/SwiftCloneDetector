@@ -41,6 +41,10 @@ public struct NearMissFinder {
     /// considered. Drops large-but-repetitive structure with little unique
     /// naming. 0 disables it.
     public let minDistinctIdentifiers: Int
+    /// Minimum lines a fragment must span. `minMass` counts AST nodes, and twenty
+    /// of them fit on one line, so a mass floor alone reports single-line
+    /// fragments nobody can act on. 1 disables it.
+    public let minLines: Int
 
     // Type-3 distinguishes structure, not token text, so signatures normalize
     // identifiers/literals away — the same basis the Type-2 pass uses.
@@ -49,10 +53,16 @@ public struct NearMissFinder {
     /// Create a finder. `minMass` is the smallest subtree (in AST nodes) worth
     /// reporting; `similarityThreshold` is the Sørensen–Dice cutoff in [0, 1];
     /// `minDistinctIdentifiers` is the distinct-naming floor (0 = off).
-    public init(minMass: Int = 30, similarityThreshold: Double = 0.85, minDistinctIdentifiers: Int = 0) {
+    public init(
+        minMass: Int = 30,
+        similarityThreshold: Double = 0.85,
+        minDistinctIdentifiers: Int = 0,
+        minLines: Int = 2
+    ) {
         self.minMass = minMass
         self.similarityThreshold = similarityThreshold
         self.minDistinctIdentifiers = minDistinctIdentifiers
+        self.minLines = minLines
     }
 
     /// Find all Type-3 near-miss clone classes across the given sources, largest
@@ -62,7 +72,12 @@ public struct NearMissFinder {
         let converters = parsed.map(\.converter)
         var fragments: [Fragment] = []
         for source in parsed {
-            collect(Syntax(source.tree), fileIndex: source.index, into: &fragments)
+            collect(
+                Syntax(source.tree),
+                fileIndex: source.index,
+                converter: source.converter,
+                into: &fragments
+            )
         }
 
         let clusters = cluster(fragments)
@@ -71,7 +86,12 @@ public struct NearMissFinder {
 
     // MARK: - Walk + vector
 
-    private func collect(_ root: Syntax, fileIndex: Int, into fragments: inout [Fragment]) {
+    private func collect(
+        _ root: Syntax,
+        fileIndex: Int,
+        converter: SourceLocationConverter,
+        into fragments: inout [Fragment]
+    ) {
         // Tokens count toward `mass` (size) but not the vector, which stays a
         // purely structural fingerprint of composite node kinds.
         @discardableResult
@@ -90,7 +110,8 @@ public struct NearMissFinder {
             }
 
             if mass >= minMass, AnchorKinds.all.contains(node.kind),
-               minDistinctIdentifiers == 0 || distinctIdentifierCount(in: node) >= minDistinctIdentifiers {
+               minDistinctIdentifiers == 0 || distinctIdentifierCount(in: node) >= minDistinctIdentifiers,
+               lineSpan(of: node, in: converter) >= minLines {
                 fragments.append(Fragment(
                     fileIndex: fileIndex,
                     node: node,
