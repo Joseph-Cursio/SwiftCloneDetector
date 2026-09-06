@@ -10,8 +10,36 @@ import Testing
 
 @Suite("CloneFinder")
 struct CloneFinderTests {
+    // `minMass` counts AST nodes and twenty of them fit inside one line, so a
+    // mass floor alone reported single-line fragments — 55-64% of Type-1/2
+    // classes across the corpus, in one case a class of 59 single-line instances.
+    private let oneLiner =
+        "func compute() -> Int { var total = 0; total += 1; total += 2; total += 3; return total }"
+
     private func source(_ path: String, _ text: String) -> SourceInput {
         SourceInput(path: path, text: text)
+    }
+
+    @Test("a one-line fragment clears the mass floor")
+    func oneLinerPassesMinMass() {
+        let finder = CloneFinder(normalization: .type1, minMass: 20, minLines: 1)
+        let classes = finder.find(in: [source("a.swift", oneLiner), source("b.swift", oneLiner)])
+        #expect(classes.contains { $0.instances.count == 2 })
+    }
+
+    @Test("and the line floor drops it anyway")
+    func lineFloorDropsTheOneLiner() {
+        let finder = CloneFinder(normalization: .type1, minMass: 20, minLines: 2)
+        let classes = finder.find(in: [source("a.swift", oneLiner), source("b.swift", oneLiner)])
+        #expect(classes.isEmpty)
+    }
+
+    @Test("the same duplication spread over several lines survives the floor")
+    func lineFloorKeepsRealClones() {
+        let spread = oneLiner.replacingOccurrences(of: "; ", with: "\n    ")
+        let finder = CloneFinder(normalization: .type1, minMass: 20, minLines: 2)
+        let classes = finder.find(in: [source("a.swift", spread), source("b.swift", spread)])
+        #expect(classes.contains { $0.instances.count == 2 })
     }
 
     @Test("detects an exact duplicated function (Type-1)")

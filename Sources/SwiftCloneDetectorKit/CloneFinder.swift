@@ -33,13 +33,24 @@ public struct CloneFinder {
     /// considered. Drops large-but-repetitive structure (a long switch, a builder
     /// chain) that passes `minMass` yet has little unique naming. 0 disables it.
     public let minDistinctIdentifiers: Int
+    /// Minimum lines a fragment must span. `minMass` counts AST nodes, and twenty
+    /// of them fit on one line, so a mass floor alone reports single-line
+    /// fragments nobody can act on. 1 disables it.
+    public let minLines: Int
 
     /// Create a finder. `minMass` is the smallest subtree (in AST nodes) worth
-    /// reporting; `minDistinctIdentifiers` is the distinct-naming floor (0 = off).
-    public init(normalization: Normalization = .type2, minMass: Int = 20, minDistinctIdentifiers: Int = 0) {
+    /// reporting; `minDistinctIdentifiers` is the distinct-naming floor (0 = off);
+    /// `minLines` is the smallest line span worth reporting (1 = off).
+    public init(
+        normalization: Normalization = .type2,
+        minMass: Int = 20,
+        minDistinctIdentifiers: Int = 0,
+        minLines: Int = 2
+    ) {
         self.normalization = normalization
         self.minMass = minMass
         self.minDistinctIdentifiers = minDistinctIdentifiers
+        self.minLines = minLines
     }
 
     /// Find all Type-1/2 clone classes across the given sources, largest first
@@ -49,7 +60,12 @@ public struct CloneFinder {
         let converters = parsed.map(\.converter)
         var fragments: [Fragment] = []
         for source in parsed {
-            collect(Syntax(source.tree), fileIndex: source.index, into: &fragments)
+            collect(
+                Syntax(source.tree),
+                fileIndex: source.index,
+                converter: source.converter,
+                into: &fragments
+            )
         }
 
         // Bucket by structural hash (fast), then confirm exact matches within
@@ -78,7 +94,12 @@ public struct CloneFinder {
 
     // MARK: - Walk + hash
 
-    private func collect(_ root: Syntax, fileIndex: Int, into fragments: inout [Fragment]) {
+    private func collect(
+        _ root: Syntax,
+        fileIndex: Int,
+        converter: SourceLocationConverter,
+        into fragments: inout [Fragment]
+    ) {
         @discardableResult
         func walk(_ node: Syntax) -> (hash: UInt64, mass: Int) {
             if let token = node.as(TokenSyntax.self) {
@@ -97,7 +118,8 @@ public struct CloneFinder {
                 mass += result.mass
             }
 
-            if mass >= minMass, AnchorKinds.all.contains(node.kind), passesIdentifierFloor(node) {
+            if mass >= minMass, AnchorKinds.all.contains(node.kind), passesIdentifierFloor(node),
+               lineSpan(of: node, in: converter) >= minLines {
                 fragments.append(Fragment(
                     fileIndex: fileIndex,
                     node: node,

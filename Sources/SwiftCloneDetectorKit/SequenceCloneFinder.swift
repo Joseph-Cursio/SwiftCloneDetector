@@ -60,20 +60,26 @@ public struct SequenceCloneFinder {
     public let minItems: Int
     /// Minimum distinct identifier tokens a run must carry (0 disables it).
     public let minDistinctIdentifiers: Int
+    /// Minimum lines a run must span. `minItems` counts statements, and several
+    /// short ones can share a line. 1 disables it.
+    public let minLines: Int
 
     /// Create a finder. `minMass` floors the total run size; `minItems` is the
     /// smallest run length in statements; `minDistinctIdentifiers` is the
-    /// distinct-naming floor (0 = off).
+    /// distinct-naming floor (0 = off); `minLines` is the smallest line span
+    /// worth reporting (1 = off).
     public init(
         normalization: Normalization = .type2,
         minMass: Int = 20,
         minItems: Int = 2,
-        minDistinctIdentifiers: Int = 0
+        minDistinctIdentifiers: Int = 0,
+        minLines: Int = 2
     ) {
         self.normalization = normalization
         self.minMass = minMass
         self.minItems = minItems
         self.minDistinctIdentifiers = minDistinctIdentifiers
+        self.minLines = minLines
     }
 
     /// Find all sequence-clone classes across the given sources, largest first
@@ -270,6 +276,17 @@ public struct SequenceCloneFinder {
 
         for runClass in ordered {
             if runClass.instances.allSatisfy(isClaimed) { continue }
+            // A run's span is its first item's start to its last item's end.
+            // Several short statements can share a line, so `minItems` does not
+            // imply a line span the way it looks like it should.
+            let spansEnough = runClass.instances.allSatisfy { instance in
+                lineSpan(
+                    from: instance.startNode.positionAfterSkippingLeadingTrivia,
+                    to: instance.endNode.endPositionBeforeTrailingTrivia,
+                    in: converters[instance.fileIndex]
+                ) >= minLines
+            }
+            if !spansEnough { continue }
 
             for instance in runClass.instances {
                 claimed[instance.fileIndex, default: []].append((instance.startOffset, instance.endOffset))

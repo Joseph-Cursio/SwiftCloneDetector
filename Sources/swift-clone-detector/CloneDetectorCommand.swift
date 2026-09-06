@@ -18,6 +18,8 @@ private let kDefaultMinDistinctIdentifiers = 0
 private let kDefaultSimilarity = 0.85
 private let kMinMassFloor = 1
 private let kMinDistinctFloor = 0
+private let kDefaultMinLines = 2
+private let kMinLinesFloor = 1
 private let kSimilarityRange = 0.0...1.0
 private let kMinimumProjectRoots = 2
 private let kClonesFoundExitCode: Int32 = 2
@@ -72,6 +74,15 @@ struct CloneDetectorCommand: ParsableCommand {
         help: "Drop fragments with fewer than this many distinct identifier tokens (0 = off)."
     )
     var minDistinctIdentifiers = kDefaultMinDistinctIdentifiers
+
+    @Option(
+        name: .customLong("min-lines"),
+        help: ArgumentHelp(
+            "Minimum lines a fragment must span (1 = off). --min-mass counts AST nodes, and "
+                + "twenty of them fit on one line."
+        )
+    )
+    var minLines = kDefaultMinLines
 
     @Option(name: .customLong("similarity"), help: "Near-miss similarity threshold in [0, 1].")
     var similarity = kDefaultSimilarity
@@ -135,6 +146,9 @@ struct CloneDetectorCommand: ParsableCommand {
         }
         guard minDistinctIdentifiers >= kMinDistinctFloor else {
             throw ValidationError("--min-distinct-identifiers must be at least \(kMinDistinctFloor).")
+        }
+        guard minLines >= kMinLinesFloor else {
+            throw ValidationError("--min-lines must be at least \(kMinLinesFloor).")
         }
         guard kSimilarityRange.contains(similarity) else {
             throw ValidationError(
@@ -217,20 +231,23 @@ struct CloneDetectorCommand: ParsableCommand {
             return SequenceCloneFinder(
                 normalization: normalization,
                 minMass: minMass,
-                minDistinctIdentifiers: minDistinctIdentifiers
+                minDistinctIdentifiers: minDistinctIdentifiers,
+                minLines: minLines
             ).find(in: sources)
         }
         if nearMiss {
             return NearMissFinder(
                 minMass: minMass,
                 similarityThreshold: similarity,
-                minDistinctIdentifiers: minDistinctIdentifiers
+                minDistinctIdentifiers: minDistinctIdentifiers,
+                minLines: minLines
             ).find(in: sources)
         }
         return CloneFinder(
             normalization: normalization,
             minMass: minMass,
-            minDistinctIdentifiers: minDistinctIdentifiers
+            minDistinctIdentifiers: minDistinctIdentifiers,
+            minLines: minLines
         ).find(in: sources)
     }
 
