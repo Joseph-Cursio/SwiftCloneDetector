@@ -260,3 +260,60 @@ pmd cpd --minimum-tokens 100 --language swift --no-fail-on-error \
 swift-clone-detector --type1 --min-mass 116 $DIRS   # verbatim
 swift-clone-detector            --min-mass 116 $DIRS   # + renamed
 ```
+
+## Type-3, scored against cases read by hand
+
+Everything above compares **verbatim and renamed** clones, which is where CPD is
+competent and where block counts can be lined up. It says nothing about Type-3,
+the pass this tool exists for — and a count cannot, because the two tools do not
+agree on what a finding *is*.
+
+So: eighteen findings were read and judged, sixteen sampled from this tool's
+output and two from CPD's, and every mode of both tools was scored against those
+verdicts. See [`../Evaluation/README.md`](../Evaluation/README.md) for the pinned
+commits and the matching rule.
+
+| run | correct | recall (9 true) | precision (9 false) |
+|---|--:|--:|--:|
+| `--type2` | 10/18 | 1 | **9** |
+| `--type3` | 9/18 | 7 | 2 |
+| `--sequence` | **13/18** | 4 | **9** |
+| all three, unioned | 11/18 | **9** | 2 |
+| `--type3 --uniform-weighting` | 9/18 | 6 | 3 |
+| PMD CPD, 40 tokens | 12/18 | 3 | **9** |
+| PMD CPD, 100 tokens | 11/18 | 2 | **9** |
+
+Four things fall out, and three of them were surprises.
+
+**CPD outscores this tool's headline mode.** 12/18 against 9/18. It gets there by
+never firing on the structural lookalikes at all — nine false cases, nine
+dropped. A token-based detector cannot mistake a SwiftUI health panel for a
+prompt editor, because it never compares them.
+
+**`--sequence` is the strongest single mode**, at 13/18, and beats CPD. That was
+not known before this table existed. It is not the default and it is the least
+documented of the three passes.
+
+**No single run finds everything.** Only the union of all three reaches full
+recall, and no invocation produces that union. The two CPD-sourced cases —
+46 lines byte-identical including their comments, and a duplicated
+`finalizeAnalysis` — are missed by both `--type2` and `--type3`, because they are
+runs of consecutive *members* rather than one subtree. CPD finds both in a single
+pass. **That is the clearest thing on this page: CPD's one run covers ground this
+tool splits across three mutually exclusive modes.**
+
+**Rarity weighting is a wash on this set.** It was merged on a six-case set where
+it scored 5/6 against uniform's 2/6. On eighteen cases it is 9/18 either way: it
+drops two false positives (`rulesSection`/`reviewSection`, and two whole actors
+matched at 87%) and admits two others from the same families. The six cases were
+chosen knowing what the change was meant to fix, and the larger set is what
+caught it. The change is kept — full recall belongs to it and not to uniform —
+but the headline claimed for it did not survive.
+
+### What this does not measure
+
+Recall, fairly. Sixteen of the eighteen cases were found by reading *this tool's*
+output, so a clone it never reports could not have entered the set that way. The
+two CPD-sourced cases are the correction, and both exposed a real gap. A fair
+recall comparison needs many more cases sampled from CPD, and from anything else
+that can read Swift.

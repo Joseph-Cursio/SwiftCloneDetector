@@ -1,0 +1,373 @@
+{
+  "comment": [
+    "Clone-detector findings read by hand and judged, so a scoring change can be",
+    "checked against a verdict instead of against a count. Each case names two or",
+    "more instances of one reported class; a build handles the case correctly when",
+    "it reports a TRUE case and does not report a FALSE one.",
+    "",
+    "",
+    "Cases marked \"found_by\": \"cpd\" were sampled from PMD CPD's output rather",
+    "than this tool's, so recall is not measured only over what this tool already",
+    "finds. Everything else was sampled from a corpus review of this tool.",
+    "Line numbers are only valid at the pinned commits in README.md."
+  ],
+  "cases": [
+    {
+      "label": "SwiftUI: rulesSection vs reviewSection",
+      "verdict": false,
+      "repo": "slrst",
+      "why": "Governed-rule annotation against approve/reject. Alike only in being SwiftUI.",
+      "instances": [
+        [
+          "StandardDetailView.swift",
+          161,
+          200
+        ],
+        [
+          "ProposalDetailView.swift",
+          102,
+          139
+        ]
+      ],
+      "found_by": "swift-clone-detector"
+    },
+    {
+      "label": "memberwise inits across 4 unrelated models",
+      "verdict": false,
+      "repo": "slrst",
+      "why": "Genuinely the same structure, unrelated in meaning, and a memberwise init cannot be factored out.",
+      "instances": [
+        [
+          "TeamStandard.swift",
+          60,
+          78
+        ],
+        [
+          "CandidateRepo.swift",
+          22,
+          38
+        ]
+      ],
+      "found_by": "swift-clone-detector"
+    },
+    {
+      "label": "whole types: LSPConnection vs MLXBackend",
+      "verdict": false,
+      "repo": "assist",
+      "why": "An LSP subprocess actor against an MLX inference actor. A large type is a large type.",
+      "instances": [
+        [
+          "LSPConnection.swift",
+          16,
+          282
+        ],
+        [
+          "MLXBackend.swift",
+          12,
+          285
+        ]
+      ],
+      "found_by": "swift-clone-detector"
+    },
+    {
+      "label": "TeamStandard fixture repeated in 3 suites",
+      "verdict": true,
+      "repo": "slrst",
+      "why": "The same nine-line literal character for character; one copy annotated to say it differed.",
+      "instances": [
+        [
+          "SwiftLintRuleStudioTeamTests.swift",
+          449,
+          517
+        ],
+        [
+          "SwiftLintRuleStudioTeamTests.swift",
+          635,
+          705
+        ],
+        [
+          "SwiftLintRuleStudioTeamTests.swift",
+          903,
+          957
+        ]
+      ],
+      "found_by": "swift-clone-detector"
+    },
+    {
+      "label": "ensureLLMLoaded vs ensureEmbedderLoaded",
+      "verdict": true,
+      "repo": "assist",
+      "why": "Same cache check, in-flight dedup and failure cleanup; the duplication hid a real concurrency bug.",
+      "instances": [
+        [
+          "MLXBackend.swift",
+          157,
+          193
+        ],
+        [
+          "MLXBackend.swift",
+          195,
+          233
+        ]
+      ],
+      "found_by": "swift-clone-detector"
+    },
+    {
+      "label": "generate7B vs generate14B",
+      "verdict": true,
+      "repo": "assist",
+      "why": "The same test with a different model \u2014 one parameterised test.",
+      "instances": [
+        [
+          "MLXBackendTests.swift",
+          147,
+          176
+        ],
+        [
+          "MLXBackendTests.swift",
+          196,
+          224
+        ]
+      ],
+      "found_by": "swift-clone-detector"
+    },
+    {
+      "label": "targetFromPath vs resolveTarget",
+      "verdict": true,
+      "repo": "assist",
+      "why": "The same path-splitting function written twice in two files, differing only in nil vs \"Unknown\".",
+      "instances": [
+        [
+          "SemanticMap.swift",
+          172,
+          179
+        ],
+        [
+          "WorkspaceIndexer.swift",
+          247,
+          254
+        ]
+      ],
+      "found_by": "swift-clone-detector"
+    },
+    {
+      "label": "fence-scanning loop written twice",
+      "verdict": true,
+      "repo": "assist",
+      "why": "Same loop, same helpers, differing by < against <= \u2014 a near-miss whose difference may be a defect.",
+      "instances": [
+        [
+          "SwiftBlockExtractor.swift",
+          7,
+          22
+        ],
+        [
+          "SwiftFormatRunner.swift",
+          74,
+          90
+        ]
+      ],
+      "found_by": "swift-clone-detector"
+    },
+    {
+      "label": "ordinal-backed Comparable on two enums",
+      "verdict": true,
+      "repo": "assist",
+      "why": "Boilerplate this corpus has already chosen to remove elsewhere (SourceLocation Comparable).",
+      "instances": [
+        [
+          "AssistSeverity.swift",
+          15,
+          33
+        ],
+        [
+          "TrustLevel.swift",
+          1,
+          19
+        ]
+      ],
+      "found_by": "swift-clone-detector"
+    },
+    {
+      "label": "three TypeCollector visitors",
+      "verdict": true,
+      "repo": "projectlint",
+      "why": "Identical but for the decl kind visited \u2014 one generic collector.",
+      "instances": [
+        [
+          "EnumTypeCollector.swift",
+          10,
+          24
+        ],
+        [
+          "ActorTypeCollector.swift",
+          10,
+          24
+        ],
+        [
+          "ProtocolTypeCollector.swift",
+          11,
+          25
+        ]
+      ],
+      "found_by": "swift-clone-detector"
+    },
+    {
+      "label": "whole test suites: InsightQuery vs AntiPatternStore",
+      "verdict": false,
+      "repo": "assist",
+      "why": "Two entire suites about different subjects. A suite is a suite.",
+      "instances": [
+        [
+          "InsightQueryTests.swift",
+          4,
+          229
+        ],
+        [
+          "AntiPatternStoreTests.swift",
+          5,
+          175
+        ]
+      ],
+      "found_by": "swift-clone-detector"
+    },
+    {
+      "label": "SwiftUI: healthSection vs promptSection",
+      "verdict": false,
+      "repo": "assist",
+      "why": "Health metrics against a prompt text editor. The SwiftUI family, outside a UI-dense repo.",
+      "instances": [
+        [
+          "PatternDetailView.swift",
+          148,
+          169
+        ],
+        [
+          "SkillComposeView.swift",
+          98,
+          114
+        ]
+      ],
+      "found_by": "swift-clone-detector"
+    },
+    {
+      "label": "chains of .count additions in two test files",
+      "verdict": false,
+      "repo": "assist",
+      "why": "Both a + chain over member counts, over unrelated collections. Irreducible.",
+      "instances": [
+        [
+          "KnowledgeGraphBuilderTests.swift",
+          14,
+          23
+        ],
+        [
+          "GraphSchemaTablesTests.swift",
+          8,
+          16
+        ]
+      ],
+      "found_by": "swift-clone-detector"
+    },
+    {
+      "label": "row parsers: parseOutcomeRows vs parseBead",
+      "verdict": false,
+      "repo": "assist",
+      "why": "Both a guard-let chain over [String: Any]; the shared part is optional-binding syntax, not logic.",
+      "instances": [
+        [
+          "SkillHealthStore+Helpers.swift",
+          96,
+          130
+        ],
+        [
+          "BeadStore.swift",
+          246,
+          277
+        ]
+      ],
+      "found_by": "swift-clone-detector"
+    },
+    {
+      "label": "two suppression visitors already sharing a base class",
+      "verdict": false,
+      "repo": "projectlint",
+      "why": "Already factored: both override SuppressionVisitorBase at the four points that vary. Nothing left to remove.",
+      "instances": [
+        [
+          "SwiftLintSuppressionVisitor.swift",
+          8,
+          26
+        ],
+        [
+          "SwiftProjectLintSuppressionVisitor.swift",
+          8,
+          25
+        ]
+      ],
+      "found_by": "swift-clone-detector"
+    },
+    {
+      "label": "multi-line source literals used as test fixtures",
+      "verdict": false,
+      "repo": "projectlint",
+      "why": "743 instances of `let source = \"\"\"...\"\"\"` holding different Swift. These are the inputs, not duplication.",
+      "instances": [
+        [
+          "AccessibilityDebugTests.swift",
+          22,
+          32
+        ],
+        [
+          "AccessibilityDebugTests.swift",
+          42,
+          48
+        ],
+        [
+          "ObservableMainActorMissingVisitorTests.swift",
+          85,
+          93
+        ]
+      ],
+      "found_by": "swift-clone-detector"
+    },
+    {
+      "label": "two enum-mapping visitors share their whole preamble",
+      "verdict": true,
+      "repo": "projectlint",
+      "found_by": "cpd",
+      "why": "Byte-identical stored properties and visit(EnumDeclSyntax), comments included.",
+      "instances": [
+        [
+          "DuplicateEnumMappingVisitor.swift",
+          42,
+          87
+        ],
+        [
+          "ScatteredEnumMappingVisitor.swift",
+          35,
+          81
+        ]
+      ]
+    },
+    {
+      "label": "finalizeAnalysis duplicated across two idempotency visitors",
+      "verdict": true,
+      "repo": "projectlint",
+      "found_by": "cpd",
+      "why": "Same upward-inference algorithm \u2014 orderedSources, applyBodyInference, the site loop.",
+      "instances": [
+        [
+          "NonIdempotentInRetryContextVisitor.swift",
+          103,
+          180
+        ],
+        [
+          "UnannotatedInStrictReplayableContextVisitor.swift",
+          103,
+          159
+        ]
+      ]
+    }
+  ]
+}
