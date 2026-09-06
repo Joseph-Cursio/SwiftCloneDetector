@@ -89,10 +89,12 @@ func reportSkippedGenerated(_ count: Int) {
 }
 
 func report(_ classes: [CloneClass], fileCount: Int, nearMiss: Bool) {
-    let label = nearMiss ? "Type-3 near-miss" : "Type-1/2"
+    let mixedPasses = Set(classes.map(\.pass)).count > 1
+    // A single-pass run keeps its established wording; a mixed one has no one type.
+    let label = mixedPasses ? "" : (nearMiss ? "Type-3 near-miss " : "Type-1/2 ")
 
     guard !classes.isEmpty else {
-        print("No \(label) clones found across \(fileCount) file(s).")
+        print("No \(label)clones found across \(fileCount) file(s).")
         return
     }
 
@@ -107,6 +109,10 @@ func report(_ classes: [CloneClass], fileCount: Int, nearMiss: Bool) {
         if let similarity = cloneClass.similarity {
             headline += ", \(Int((similarity * 100).rounded()))% similar"
         }
+        // Only when passes ran together: otherwise the run's own header says it.
+        if mixedPasses {
+            headline += " [\(cloneClass.pass.label)]"
+        }
 
         print("")
         print("\(headline):")
@@ -116,8 +122,15 @@ func report(_ classes: [CloneClass], fileCount: Int, nearMiss: Bool) {
     }
 
     print("")
-    print("Found \(classes.count) \(label) clone class(es) across \(fileCount) file(s); "
+    print("Found \(classes.count) \(label)clone class(es) across \(fileCount) file(s); "
         + "~\(duplicatedLines) duplicated line(s).")
+    if mixedPasses {
+        let byPass = DetectionPass.allCases
+            .map { pass in (pass, classes.filter { $0.pass == pass }.count) }
+            .filter { $0.1 > 0 }
+            .map { "\($0.1) \($0.0.label)" }
+        print("  " + byPass.joined(separator: ", ") + " — each pass sees shapes the others cannot.")
+    }
 }
 
 func reportCrossProject(
