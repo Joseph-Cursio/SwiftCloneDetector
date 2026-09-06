@@ -273,24 +273,25 @@ output and two from CPD's, and every mode of both tools was scored against those
 verdicts. See [`../Evaluation/README.md`](../Evaluation/README.md) for the pinned
 commits and the matching rule.
 
-| run | correct | recall (9 true) | precision (9 false) |
+| run | correct | recall (12 true) | precision (13 false) |
 |---|--:|--:|--:|
-| `--type2` | 10/18 | 1 | **9** |
-| `--type3` | 9/18 | 7 | 2 |
-| `--sequence` | **13/18** | 4 | **9** |
-| all three, unioned | 11/18 | **9** | 2 |
-| `--type3 --uniform-weighting` | 9/18 | 6 | 3 |
-| PMD CPD, 40 tokens | 12/18 | 3 | **9** |
-| PMD CPD, 100 tokens | 11/18 | 2 | **9** |
+| `--type2` | 14/25 | 1 | **13** |
+| `--type3` | 11/25 | 8 | 3 |
+| `--sequence` | **18/25** | 6 | 12 |
+| `--all` | 14/25 | **12** | 2 |
+| PMD CPD, 40 tokens | 17/25 | 4 | **13** |
+
+Seven of the twenty-five cases come from Alamofire, Moya and IceCubesApp, so the
+picture is not one author's style.
 
 Four things fall out, and three of them were surprises.
 
-**CPD outscores this tool's headline mode.** 12/18 against 9/18. It gets there by
+**CPD outscores this tool's headline mode.** 17/25 against 11/25. It gets there by
 never firing on the structural lookalikes at all — nine false cases, nine
 dropped. A token-based detector cannot mistake a SwiftUI health panel for a
 prompt editor, because it never compares them.
 
-**`--sequence` is the strongest single mode**, at 13/18, and beats CPD. That was
+**`--sequence` is the strongest single mode**, at 18/25, and beats CPD. That was
 not known before this table existed. It is not the default and it is the least
 documented of the three passes.
 
@@ -303,7 +304,7 @@ pass. **That is the clearest thing on this page: CPD's one run covers ground thi
 tool splits across three mutually exclusive modes.**
 
 **Rarity weighting is a wash on this set.** It was merged on a six-case set where
-it scored 5/6 against uniform's 2/6. On eighteen cases it is 9/18 either way: it
+it scored 5/6 against uniform's 2/6. On the larger set it is a tie either way: it
 drops two false positives (`rulesSection`/`reviewSection`, and two whole actors
 matched at 87%) and admits two others from the same families. The six cases were
 chosen knowing what the change was meant to fix, and the larger set is what

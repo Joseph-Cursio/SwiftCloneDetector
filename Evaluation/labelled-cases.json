@@ -368,6 +368,144 @@
           159
         ]
       ]
+    },
+    {
+      "label": "import blocks repeated across 91 files",
+      "verdict": false,
+      "repo": "icecubes",
+      "found_by": "swift-clone-detector",
+      "why": "A run of `import` declarations. 91 instances, the repo's top finding by volume, and nobody deduplicates imports.",
+      "instances": [
+        [
+          "AboutView.swift",
+          1,
+          6
+        ],
+        [
+          "ContentSettingsView.swift",
+          1,
+          6
+        ]
+      ]
+    },
+    {
+      "label": "authenticate vs append: make a value, pass it on",
+      "verdict": false,
+      "repo": "alamofire",
+      "found_by": "swift-clone-detector",
+      "why": "Credential auth against multipart body parts. Alike only in constructing one value and handing it on.",
+      "instances": [
+        [
+          "Request.swift",
+          803,
+          808
+        ],
+        [
+          "MultipartFormData.swift",
+          305,
+          308
+        ]
+      ]
+    },
+    {
+      "label": "SwiftUI bodies in third-party code",
+      "verdict": false,
+      "repo": "icecubes",
+      "found_by": "swift-clone-detector",
+      "why": "Profile fields against an unread-count button. Both `if #available` + `#if os(visionOS)` + modifiers, sharing nothing else.",
+      "instances": [
+        [
+          "AccountFieldsView.swift",
+          14,
+          49
+        ],
+        [
+          "TimelineUnreadStatusesObserver.swift",
+          41,
+          71
+        ]
+      ]
+    },
+    {
+      "label": "two whole test files, different subjects",
+      "verdict": false,
+      "repo": "alamofire",
+      "found_by": "swift-clone-detector",
+      "why": "1670 and 1516 lines of unrelated tests. A test file is a test file.",
+      "instances": [
+        [
+          "SessionTests.swift",
+          29,
+          1698
+        ],
+        [
+          "AuthenticationInterceptorTests.swift",
+          29,
+          1516
+        ]
+      ]
+    },
+    {
+      "label": "three reactive spec files, same tests",
+      "verdict": true,
+      "repo": "moya",
+      "found_by": "swift-clone-detector",
+      "why": "Observable/Single/SignalProducer specs, identical but for asObservable/asSingle and onNext/onSuccess.",
+      "instances": [
+        [
+          "Observable+MoyaSpec.swift",
+          7,
+          599
+        ],
+        [
+          "Single+MoyaSpec.swift",
+          7,
+          586
+        ],
+        [
+          "SignalProducer+MoyaSpec.swift",
+          11,
+          576
+        ]
+      ]
+    },
+    {
+      "label": "same trust test written twice for two evaluators",
+      "verdict": true,
+      "repo": "alamofire",
+      "found_by": "swift-clone-detector",
+      "why": "Same function name, same body, DefaultTrustEvaluator against RevocationTrustEvaluator. One parameterised test.",
+      "instances": [
+        [
+          "ServerTrustEvaluatorTests.swift",
+          365,
+          419
+        ],
+        [
+          "ServerTrustEvaluatorTests.swift",
+          528,
+          582
+        ]
+      ]
+    },
+    {
+      "label": "validation test scaffolding written twice",
+      "verdict": true,
+      "repo": "alamofire",
+      "found_by": "swift-clone-detector",
+      "why": "Identical 29-line session/endpoint/two-expectation setup, differing only in the validate call.",
+      "instances": [
+        [
+          "ValidationTests.swift",
+          106,
+          134
+        ],
+        [
+          "ValidationTests.swift",
+          379,
+          407
+        ]
+      ]
     }
   ]
 }

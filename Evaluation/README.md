@@ -17,6 +17,9 @@ The line numbers are only valid at these commits:
 | `slrst` | SwiftLintRuleStudioTeam | `08af925` |
 | `assist` | SwiftAssist | `f274ff1` |
 | `projectlint` | SwiftProjectLint | `b6131cb` |
+| `alamofire` | [Alamofire](https://github.com/Alamofire/Alamofire) | `903c53c7` |
+| `icecubes` | [IceCubesApp](https://github.com/Dimillian/IceCubesApp) | `0fc41d2c` |
+| `moya` | [Moya](https://github.com/Moya/Moya) | `24c26671` |
 
 Check each out into one directory, named as above, then:
 
@@ -41,9 +44,10 @@ counted as having found it, and so did a 274-line class that merely swallowed a
 
 ## What the set is, and is not
 
-Sixteen of the eighteen cases were sampled from **this tool's** output during a
-corpus review; two were sampled from **PMD CPD's**. That asymmetry matters and is
-recorded per case in `found_by`.
+Cases come from three places, recorded per case in `found_by` and by which
+repository they name. Eighteen are from repositories the author owns; seven are
+from widely-used third-party libraries, so the set is not only one person's
+style. Two were sampled from **PMD CPD's** output rather than this tool's.
 
 A set drawn only from one tool's output cannot measure that tool's recall — a
 clone it never reports is structurally absent from the set. The two CPD-sourced
