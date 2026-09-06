@@ -64,8 +64,54 @@ struct NearMissFinderTests {
     }
     """
 
+    // Three functions in a line. `bravo` is a *blend* of `alpha` and `charlie`,
+    // not their union — Dice penalises a size difference hard enough that a
+    // double-length middle scores worse against each end than the ends do
+    // against each other, which is the opposite of a chain.
+    //
+    // Measured: alpha~bravo 0.83, bravo~charlie 0.85, alpha~charlie 0.68. At a
+    // 0.75 threshold the first two clear it and the third does not, which is
+    // exactly what single-linkage clustering merges into one class and complete
+    // linkage must not.
+    private var chained: String {
+        [
+            wrapped("alpha", ifChain(1, 13)),
+            wrapped("bravo", ifChain(1, 7) + "\n" + switchChain(7, 13)),
+            wrapped("charlie", switchChain(1, 13))
+        ].joined(separator: "\n\n")
+    }
+
     private func source(_ path: String, _ text: String) -> SourceInput {
         SourceInput(path: path, text: text)
+    }
+
+    private func ifChain(_ from: Int, _ upTo: Int) -> String {
+        let lines = (from..<upTo).map { index in
+            "    if items.count > \(index) { total += \(index) }"
+        }
+        return lines.joined(separator: "\n")
+    }
+
+    private func switchChain(_ from: Int, _ upTo: Int) -> String {
+        let cases = (from..<upTo).map { index in
+            """
+                switch items.count {
+                case \(index): total += \(index)
+                default: total -= \(index)
+                }
+            """
+        }
+        return cases.joined(separator: "\n")
+    }
+
+    private func wrapped(_ name: String, _ body: String) -> String {
+        """
+        func \(name)(_ items: [Int]) -> Int {
+            var total = 0
+        \(body)
+            return total
+        }
+        """
     }
 
     @Test("clusters a near-miss copy that drifted by one inserted statement")
@@ -135,6 +181,32 @@ struct NearMissFinderTests {
         let finder = NearMissFinder(minMass: 20, similarityThreshold: 0.85)
         let classes = finder.find(in: [source("a.swift", nested)])
         #expect(classes.contains { $0.instances.count == 4 })
+    }
+
+    // The guarantee a clone class makes: every member is a near copy of every
+    // other. Union-find gives single linkage, where A joins B and B joins C and
+    // A and C land together however unlike they are — over the corpus that
+    // produced a class of 34,942 fragments whose least-similar pair scored 3%.
+    @Test("never reports a class whose least-similar pair is below the threshold")
+    func neverReportsBelowThreshold() {
+        let threshold = 0.75
+        let finder = NearMissFinder(minMass: 100, similarityThreshold: threshold)
+        let classes = finder.find(in: [source("chain.swift", chained)])
+        #expect(classes.isEmpty == false)
+        for cloneClass in classes {
+            #expect(
+                (cloneClass.similarity ?? 1.0) >= threshold,
+                "reported a class at \(cloneClass.similarity ?? 1.0), below the \(threshold) threshold"
+            )
+        }
+    }
+
+    // Breaking the chain must not cost the pair that was genuinely alike.
+    @Test("keeps the pair either side of the broken chain")
+    func keepsTheGenuinePair() {
+        let finder = NearMissFinder(minMass: 100, similarityThreshold: 0.75)
+        let classes = finder.find(in: [source("chain.swift", chained)])
+        #expect(classes.contains { $0.instances.count == 2 })
     }
 
     @Test("a tighter threshold rejects a loose match")
