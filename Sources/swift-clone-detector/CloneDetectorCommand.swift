@@ -82,6 +82,15 @@ struct CloneDetectorCommand: ParsableCommand {
     )
     var sharedPaths: [String] = []
 
+    @Flag(
+        name: .customLong("include-generated"),
+        help: ArgumentHelp(
+            "Also scan machine-written files. They are skipped by default: generated code is "
+                + "duplicated by construction, and none of it is worth deduplicating."
+        )
+    )
+    var includeGenerated = false
+
     @Option(
         name: .customLong("exclude"),
         help: ArgumentHelp(
@@ -141,7 +150,8 @@ struct CloneDetectorCommand: ParsableCommand {
         }
 
         let scanPaths = paths.isEmpty ? ["."] : paths
-        let sources = loadSwiftFiles(paths: scanPaths, excluding: excludePatterns)
+        let discovered = loadSwiftFiles(paths: scanPaths, excluding: excludePatterns)
+        let sources = scannable(discovered)
         guard !sources.isEmpty else {
             throw ValidationError("no .swift files found")
         }
@@ -153,10 +163,20 @@ struct CloneDetectorCommand: ParsableCommand {
         }
 
         let outcome = try applyBaseline(classes)
-        emit(outcome.reported, fileCount: sources.count, suppressed: outcome.suppressed)
+        emit(
+            outcome.reported,
+            fileCount: sources.count,
+            suppressed: outcome.suppressed,
+            skippedGenerated: discovered.count - sources.count
+        )
         if !outcome.reported.isEmpty {
             throw ExitCode(kClonesFoundExitCode)
         }
+    }
+
+    /// The discovered files this run will actually parse.
+    private func scannable(_ discovered: [SourceInput]) -> [SourceInput] {
+        includeGenerated ? discovered : discovered.filter { !$0.isGenerated }
     }
 
     private func runCrossProject() throws {
@@ -166,7 +186,8 @@ struct CloneDetectorCommand: ParsableCommand {
                 + "(pass consumer paths and optionally --shared)")
         }
 
-        let sources = loadSwiftFiles(paths: paths + sharedPaths, excluding: excludePatterns)
+        let discovered = loadSwiftFiles(paths: paths + sharedPaths, excluding: excludePatterns)
+        let sources = scannable(discovered)
         guard !sources.isEmpty else {
             throw ValidationError("no .swift files found")
         }
@@ -179,7 +200,13 @@ struct CloneDetectorCommand: ParsableCommand {
         }
 
         let outcome = try applyBaselineCross(cross)
-        emitCrossProject(outcome.reported, roots: roots, fileCount: sources.count, suppressed: outcome.suppressed)
+        emitCrossProject(
+            outcome.reported,
+            roots: roots,
+            fileCount: sources.count,
+            suppressed: outcome.suppressed,
+            skippedGenerated: discovered.count - sources.count
+        )
         if !outcome.reported.isEmpty {
             throw ExitCode(kClonesFoundExitCode)
         }
@@ -232,13 +259,14 @@ struct CloneDetectorCommand: ParsableCommand {
     }
 
     // Render results in the requested format, with a baseline note for text output.
-    private func emit(_ classes: [CloneClass], fileCount: Int, suppressed: Int) {
+    private func emit(_ classes: [CloneClass], fileCount: Int, suppressed: Int, skippedGenerated: Int) {
         switch format {
         case .text:
             report(classes, fileCount: fileCount, nearMiss: reportsNearMiss)
             if suppressed > 0 {
                 print("(\(suppressed) known clone(s) suppressed by baseline.)")
             }
+            reportSkippedGenerated(skippedGenerated)
         case .json:
             print(jsonReport(classes, fileCount: fileCount, nearMiss: reportsNearMiss))
         case .sarif:
@@ -250,7 +278,8 @@ struct CloneDetectorCommand: ParsableCommand {
         _ clones: [CrossProjectClone],
         roots: [ProjectRoot],
         fileCount: Int,
-        suppressed: Int
+        suppressed: Int,
+        skippedGenerated: Int
     ) {
         switch format {
         case .text:
@@ -258,6 +287,7 @@ struct CloneDetectorCommand: ParsableCommand {
             if suppressed > 0 {
                 print("(\(suppressed) known clone(s) suppressed by baseline.)")
             }
+            reportSkippedGenerated(skippedGenerated)
         case .json:
             print(jsonReportCrossProject(clones, fileCount: fileCount))
         case .sarif:

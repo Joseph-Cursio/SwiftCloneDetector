@@ -79,6 +79,15 @@ func loadSwiftFiles(paths: [String], excluding patterns: [String]) -> [SourceInp
     }
 }
 
+/// Say how many machine-written files were left unscanned, and how to include them.
+/// Silent when there were none, so an ordinary run gains no line.
+func reportSkippedGenerated(_ count: Int) {
+    guard count > 0 else {
+        return
+    }
+    print("(\(count) generated file(s) skipped; pass --include-generated to scan them.)")
+}
+
 func report(_ classes: [CloneClass], fileCount: Int, nearMiss: Bool) {
     let label = nearMiss ? "Type-3 near-miss" : "Type-1/2"
 
