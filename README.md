@@ -63,6 +63,27 @@ Deckard-style **characteristic vector** instead:
 5. Subsume nested clusters, same as above, and report each class with its
    minimum pairwise similarity.
 
+### The passes compose
+
+They look for different shapes and each is blind to the others', so naming more
+than one now runs all of them and merges the results:
+
+```sh
+swift-clone-detector . --all              # every pass
+swift-clone-detector . --type3 --sequence # or name the ones you want
+```
+
+Naming none still runs the subtree pass alone. A mixed report labels each class
+with the pass that found it, because "exact" and "87% similar" are different
+claims. Merging never lets a weaker claim hide a stronger one: a near-miss class
+does not subsume an exact match it happens to contain.
+
+**No single pass finds everything.** Duplication spanning more than one
+declaration — two classes sharing a run of stored properties and a method — is
+invisible to `--type2` and `--type3` alike, because it is not one subtree.
+Scored against hand-judged cases in [`Evaluation/`](Evaluation/README.md), only
+the merged run reaches full recall.
+
 ## Usage
 
 ```sh

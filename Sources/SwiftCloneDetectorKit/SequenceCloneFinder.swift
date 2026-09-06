@@ -304,7 +304,7 @@ public struct SequenceCloneFinder {
                     endColumn: end.column
                 )
             }
-            result.append(CloneClass(mass: runClass.mass, instances: instances))
+            result.append(CloneClass(mass: runClass.mass, instances: instances, pass: .sequence))
         }
         return result
     }

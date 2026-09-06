@@ -81,29 +81,37 @@ extension CloneDetectorCommand {
     }
 
     func findClones(in sources: [SourceInput]) -> [CloneClass] {
-        if sequence {
-            return SequenceCloneFinder(
+        let found = passes.flatMap { pass in
+            finder(for: pass).find(in: sources)
+        }
+        return passes.count > 1 ? CloneClass.merged(found) : found
+    }
+
+    private func finder(for pass: DetectionPass) -> any ClonePass {
+        switch pass {
+        case .subtree:
+            return CloneFinder(
                 normalization: normalization,
                 minMass: minMass,
                 minDistinctIdentifiers: minDistinctIdentifiers,
                 minLines: minLines
-            ).find(in: sources)
-        }
-        if nearMiss {
+            )
+        case .nearMiss:
             return NearMissFinder(
                 minMass: minMass,
                 similarityThreshold: similarity,
                 minDistinctIdentifiers: minDistinctIdentifiers,
                 minLines: minLines,
                 useRarityWeighting: !uniformWeighting
-            ).find(in: sources)
+            )
+        case .sequence:
+            return SequenceCloneFinder(
+                normalization: normalization,
+                minMass: minMass,
+                minDistinctIdentifiers: minDistinctIdentifiers,
+                minLines: minLines
+            )
         }
-        return CloneFinder(
-            normalization: normalization,
-            minMass: minMass,
-            minDistinctIdentifiers: minDistinctIdentifiers,
-            minLines: minLines
-        ).find(in: sources)
     }
 
     // Filter detected clones through a baseline, if one was given. Returns the

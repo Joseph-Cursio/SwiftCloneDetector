@@ -83,8 +83,9 @@ def main():
     parser.add_argument("checkouts")
     parser.add_argument("--binary", default=".build/release/swift-clone-detector")
     parser.add_argument("--cpd", action="store_true", help="score PMD CPD instead")
-    parser.add_argument("--mode", default="type3", choices=["type1", "type2", "type3", "sequence", "any"],
-                        help="detector pass to score; 'any' unions all three, which no single run does")
+    parser.add_argument("--mode", default="type3", choices=["type1", "type2", "type3", "sequence", "all", "any"],
+                        help="detector pass to score; 'all' is the tool's merged run, "
+                             "'any' unions three separate runs without merging")
     parser.add_argument("--min-tokens", type=int, default=40)
     args, flags = parser.parse_known_args()
     flags = [f for f in flags if f != "--"]

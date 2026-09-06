@@ -209,7 +209,8 @@ public struct NearMissFinder {
             result.append(CloneClass(
                 mass: members.map(\.mass).max() ?? 0,
                 instances: instances,
-                similarity: minimumPairwiseSimilarity(memberIndices, scoring: scoring)
+                similarity: minimumPairwiseSimilarity(memberIndices, scoring: scoring),
+                pass: .nearMiss
             ))
         }
         return result

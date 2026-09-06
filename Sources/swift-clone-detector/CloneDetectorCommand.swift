@@ -63,6 +63,15 @@ struct CloneDetectorCommand: ParsableCommand {
     )
     var sequence = false
 
+    @Flag(
+        name: .customLong("all"),
+        help: ArgumentHelp(
+            "Run every pass and merge the results. No single pass finds everything: duplication "
+                + "spanning more than one declaration is invisible to --type2 and --type3."
+        )
+    )
+    var allPasses = false
+
     @Flag(name: .customLong("cross-project"), help: "Only report clones spanning two or more project roots.")
     var crossProject = false
 
@@ -143,10 +152,33 @@ struct CloneDetectorCommand: ParsableCommand {
         type1 ? .type1 : .type2
     }
 
-    // Sequence clones are exact/renamed duplications, so they report as Type-1/2
-    // even if --type3 was also passed; --sequence selects the strategy.
+    /// The passes this run will make.
+    ///
+    /// The flags used to be mutually exclusive with an undocumented precedence —
+    /// `--type3 --sequence` silently ran only the sequence pass. They are now
+    /// additive, because the passes look for different shapes and each is blind
+    /// to the others'. Naming none still means the subtree pass alone.
+    var passes: [DetectionPass] {
+        if allPasses {
+            return DetectionPass.allCases
+        }
+        var selected: [DetectionPass] = []
+        if type1 || type2 || (!nearMiss && !sequence) {
+            selected.append(.subtree)
+        }
+        if nearMiss {
+            selected.append(.nearMiss)
+        }
+        if sequence {
+            selected.append(.sequence)
+        }
+        return selected
+    }
+
+    /// Whether the whole report is near-miss, which is only true when that is the
+    /// single pass. A mixed report labels each class instead.
     var reportsNearMiss: Bool {
-        nearMiss && !sequence
+        passes == [.nearMiss]
     }
 
     func validate() throws {

@@ -9,6 +9,7 @@
 
 import ArgumentParser
 @testable import swift_clone_detector
+import SwiftCloneDetectorKit
 import Testing
 
 @Suite("CommandParsing")
@@ -134,5 +135,29 @@ struct CommandParsingTests {
     @Test("rejects an unknown option")
     func rejectsUnknownOption() {
         #expect(failureMessage(["--bogus", "Sources"])?.contains("--bogus") == true)
+    }
+
+    // These flags used to be mutually exclusive with an undocumented precedence:
+    // `--type3 --sequence` silently ran the sequence pass alone.
+    @Test("naming two passes runs both")
+    func passFlagsAreAdditive() throws {
+        let command = try parse(["--type3", "--sequence", "."])
+        #expect(command.passes == [.nearMiss, .sequence])
+    }
+
+    @Test("naming no pass still means the subtree pass alone")
+    func defaultsToSubtree() throws {
+        #expect(try parse(["."]).passes == [.subtree])
+    }
+
+    @Test("--all runs every pass")
+    func allSelectsEveryPass() throws {
+        #expect(try parse(["--all", "."]).passes == DetectionPass.allCases)
+    }
+
+    @Test("a mixed run is not labelled near-miss")
+    func mixedRunIsNotNearMiss() throws {
+        #expect(try parse(["--type3", "."]).reportsNearMiss)
+        #expect(try parse(["--type3", "--sequence", "."]).reportsNearMiss == false)
     }
 }

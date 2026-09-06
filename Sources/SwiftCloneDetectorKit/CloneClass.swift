@@ -17,10 +17,19 @@ public struct CloneClass: Sendable {
     /// For near-miss (Type-3) classes, the minimum pairwise structural
     /// similarity in [0, 1]. `nil` for exact (Type-1/2) classes.
     public let similarity: Double?
+    /// Which search found this. Meaningful when passes run together, where a
+    /// report otherwise cannot say why one finding is exact and the next is 87%.
+    public let pass: DetectionPass
 
-    public init(mass: Int, instances: [CloneInstance], similarity: Double? = nil) {
+    public init(
+        mass: Int,
+        instances: [CloneInstance],
+        similarity: Double? = nil,
+        pass: DetectionPass = .subtree
+    ) {
         self.mass = mass
         self.instances = instances
         self.similarity = similarity
+        self.pass = pass
     }
 }
