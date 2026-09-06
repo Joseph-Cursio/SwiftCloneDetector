@@ -20,9 +20,9 @@ private let kMinMassFloor = 1
 private let kMinDistinctFloor = 0
 private let kDefaultMinLines = 2
 private let kMinLinesFloor = 1
-private let kSimilarityRange = 0.0...1.0
-private let kMinimumProjectRoots = 2
-private let kClonesFoundExitCode: Int32 = 2
+let kSimilarityRange = 0.0...1.0
+let kMinimumProjectRoots = 2
+let kClonesFoundExitCode: Int32 = 2
 
 @main
 struct CloneDetectorCommand: ParsableCommand {
@@ -84,6 +84,15 @@ struct CloneDetectorCommand: ParsableCommand {
     )
     var minLines = kDefaultMinLines
 
+    @Flag(
+        name: .customLong("uniform-weighting"),
+        help: ArgumentHelp(
+            "Weight every node kind equally in near-miss scoring. The default weights a kind by "
+                + "how rare it is, so constructs every fragment carries stop deciding the score."
+        )
+    )
+    var uniformWeighting = false
+
     @Option(name: .customLong("similarity"), help: "Near-miss similarity threshold in [0, 1].")
     var similarity = kDefaultSimilarity
 
@@ -130,13 +139,13 @@ struct CloneDetectorCommand: ParsableCommand {
     var paths: [String] = []
 
     // type1 wins if both type flags are given; type2 is the implicit default.
-    private var normalization: Normalization {
+    var normalization: Normalization {
         type1 ? .type1 : .type2
     }
 
     // Sequence clones are exact/renamed duplications, so they report as Type-1/2
     // even if --type3 was also passed; --sequence selects the strategy.
-    private var reportsNearMiss: Bool {
+    var reportsNearMiss: Bool {
         nearMiss && !sequence
     }
 
@@ -154,161 +163,6 @@ struct CloneDetectorCommand: ParsableCommand {
             throw ValidationError(
                 "--similarity must be within \(kSimilarityRange.lowerBound)...\(kSimilarityRange.upperBound)."
             )
-        }
-    }
-
-    func run() throws {
-        if crossProject {
-            try runCrossProject()
-            return
-        }
-
-        let scanPaths = paths.isEmpty ? ["."] : paths
-        let discovered = loadSwiftFiles(paths: scanPaths, excluding: excludePatterns)
-        let sources = scannable(discovered)
-        guard !sources.isEmpty else {
-            throw ValidationError("no .swift files found")
-        }
-
-        let classes = findClones(in: sources)
-        if let path = writeBaselinePath {
-            try writeBaseline(classes, to: path)
-            return
-        }
-
-        let outcome = try applyBaseline(classes)
-        emit(
-            outcome.reported,
-            fileCount: sources.count,
-            suppressed: outcome.suppressed,
-            skippedGenerated: discovered.count - sources.count
-        )
-        if !outcome.reported.isEmpty {
-            throw ExitCode(kClonesFoundExitCode)
-        }
-    }
-
-    /// The discovered files this run will actually parse.
-    private func scannable(_ discovered: [SourceInput]) -> [SourceInput] {
-        includeGenerated ? discovered : discovered.filter { !$0.isGenerated }
-    }
-
-    private func runCrossProject() throws {
-        let roots = projectRoots(consumers: paths, shared: sharedPaths)
-        guard roots.count >= kMinimumProjectRoots else {
-            throw ValidationError("--cross-project needs at least two project roots "
-                + "(pass consumer paths and optionally --shared)")
-        }
-
-        let discovered = loadSwiftFiles(paths: paths + sharedPaths, excluding: excludePatterns)
-        let sources = scannable(discovered)
-        guard !sources.isEmpty else {
-            throw ValidationError("no .swift files found")
-        }
-
-        let classes = findClones(in: sources)
-        let cross = CrossProjectAnalyzer(roots: roots).analyze(classes)
-        if let path = writeBaselinePath {
-            try writeBaseline(cross.map(\.cloneClass), to: path)
-            return
-        }
-
-        let outcome = try applyBaselineCross(cross)
-        emitCrossProject(
-            outcome.reported,
-            roots: roots,
-            fileCount: sources.count,
-            suppressed: outcome.suppressed,
-            skippedGenerated: discovered.count - sources.count
-        )
-        if !outcome.reported.isEmpty {
-            throw ExitCode(kClonesFoundExitCode)
-        }
-    }
-
-    private func findClones(in sources: [SourceInput]) -> [CloneClass] {
-        if sequence {
-            return SequenceCloneFinder(
-                normalization: normalization,
-                minMass: minMass,
-                minDistinctIdentifiers: minDistinctIdentifiers,
-                minLines: minLines
-            ).find(in: sources)
-        }
-        if nearMiss {
-            return NearMissFinder(
-                minMass: minMass,
-                similarityThreshold: similarity,
-                minDistinctIdentifiers: minDistinctIdentifiers,
-                minLines: minLines
-            ).find(in: sources)
-        }
-        return CloneFinder(
-            normalization: normalization,
-            minMass: minMass,
-            minDistinctIdentifiers: minDistinctIdentifiers,
-            minLines: minLines
-        ).find(in: sources)
-    }
-
-    // Filter detected clones through a baseline, if one was given. Returns the
-    // clones to report and how many were suppressed as already-known.
-    private func applyBaseline(
-        _ classes: [CloneClass]
-    ) throws -> (reported: [CloneClass], suppressed: Int) {
-        guard let path = baselinePath else {
-            return (classes, 0)
-        }
-        let fingerprints = try loadBaseline(at: path).fingerprintSet
-        let split = partitionClasses(classes, baseline: fingerprints)
-        return (split.new, split.known.count)
-    }
-
-    private func applyBaselineCross(
-        _ clones: [CrossProjectClone]
-    ) throws -> (reported: [CrossProjectClone], suppressed: Int) {
-        guard let path = baselinePath else {
-            return (clones, 0)
-        }
-        let fingerprints = try loadBaseline(at: path).fingerprintSet
-        let reported = clones.filter { !fingerprints.contains(cloneFingerprint(for: $0.cloneClass)) }
-        return (reported, clones.count - reported.count)
-    }
-
-    // Render results in the requested format, with a baseline note for text output.
-    private func emit(_ classes: [CloneClass], fileCount: Int, suppressed: Int, skippedGenerated: Int) {
-        switch format {
-        case .text:
-            report(classes, fileCount: fileCount, nearMiss: reportsNearMiss)
-            if suppressed > 0 {
-                print("(\(suppressed) known clone(s) suppressed by baseline.)")
-            }
-            reportSkippedGenerated(skippedGenerated)
-        case .json:
-            print(jsonReport(classes, fileCount: fileCount, nearMiss: reportsNearMiss))
-        case .sarif:
-            print(sarifReport(classes, nearMiss: reportsNearMiss))
-        }
-    }
-
-    private func emitCrossProject(
-        _ clones: [CrossProjectClone],
-        roots: [ProjectRoot],
-        fileCount: Int,
-        suppressed: Int,
-        skippedGenerated: Int
-    ) {
-        switch format {
-        case .text:
-            reportCrossProject(clones, roots: roots, fileCount: fileCount, nearMiss: reportsNearMiss)
-            if suppressed > 0 {
-                print("(\(suppressed) known clone(s) suppressed by baseline.)")
-            }
-            reportSkippedGenerated(skippedGenerated)
-        case .json:
-            print(jsonReportCrossProject(clones, fileCount: fileCount))
-        case .sarif:
-            print(sarifReportCrossProject(clones))
         }
     }
 }
