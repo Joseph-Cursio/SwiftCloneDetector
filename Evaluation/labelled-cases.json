@@ -506,6 +506,139 @@
           407
         ]
       ]
+    },
+    {
+      "label": "toEventually and toEventuallyNot, 32 instances",
+      "verdict": true,
+      "repo": "nimble",
+      "found_by": "swift-clone-detector",
+      "why": "Identical but for .toMatch/.toNotMatch, the description and the fnName. One private helper parameterised by style.",
+      "instances": [
+        [
+          "Polling+Require.swift",
+          326,
+          348
+        ],
+        [
+          "Polling+Require.swift",
+          352,
+          374
+        ]
+      ]
+    },
+    {
+      "label": "expect and expects have identical bodies",
+      "verdict": true,
+      "repo": "nimble",
+      "found_by": "swift-clone-detector",
+      "why": "Byte-identical. The alias should call the original rather than repeat it.",
+      "instances": [
+        [
+          "DSL.swift",
+          11,
+          17
+        ],
+        [
+          "DSL.swift",
+          49,
+          55
+        ]
+      ]
+    },
+    {
+      "label": "the same SQL setup block five times in one file",
+      "verdict": true,
+      "repo": "grdb",
+      "found_by": "swift-clone-detector",
+      "why": "Byte-identical CREATE TABLE / INSERT text repeated across five tests.",
+      "instances": [
+        [
+          "ForeignKeyInfoTests.swift",
+          396,
+          403
+        ],
+        [
+          "ForeignKeyInfoTests.swift",
+          445,
+          452
+        ]
+      ]
+    },
+    {
+      "label": "two extension blocks on one type in one file",
+      "verdict": false,
+      "repo": "euclid",
+      "found_by": "swift-clone-detector",
+      "why": "Path's public API against its internal storage and init. Alike only in being a long extension of Path.",
+      "instances": [
+        [
+          "Path.swift",
+          117,
+          607
+        ],
+        [
+          "Path.swift",
+          661,
+          1146
+        ]
+      ]
+    },
+    {
+      "label": "an extension block against a free function",
+      "verdict": false,
+      "repo": "euclid",
+      "found_by": "swift-clone-detector",
+      "why": "Polygon's extension against triangulateVertices. 400 lines alike in nothing but size.",
+      "instances": [
+        [
+          "Polygon.swift",
+          1449,
+          1848
+        ],
+        [
+          "Utilities.swift",
+          143,
+          446
+        ]
+      ]
+    },
+    {
+      "label": "async continuation bridges",
+      "verdict": false,
+      "repo": "kingfisher",
+      "found_by": "swift-clone-detector",
+      "why": "Four `withCheckedContinuation { c in callback { c.resume() } }` wrappers. Extracting the wrapper hides which method is bridged.",
+      "instances": [
+        [
+          "ImageCache.swift",
+          1403,
+          1407
+        ],
+        [
+          "ImageCache.swift",
+          1412,
+          1416
+        ]
+      ]
+    },
+    {
+      "label": "a matrix of record test suites over primary-key kinds",
+      "verdict": false,
+      "repo": "grdb",
+      "found_by": "swift-clone-detector",
+      "why": "Five suites of ~900 lines whose assertions genuinely differ \u2014 nil primary key inserts a row in one and throws in another. The variation is the subject.",
+      "instances": [
+        [
+          "RecordMinimalPrimaryKeyRowIDTests.swift",
+          50,
+          878
+        ],
+        [
+          "RecordMinimalPrimaryKeySingleTests.swift",
+          47,
+          912
+        ]
+      ]
     }
   ]
 }

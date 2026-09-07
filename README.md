@@ -52,7 +52,7 @@ Deckard-style **characteristic vector** instead:
    different things score alike because both are mostly `FunctionCallExpr` and
    `MemberAccessExpr`. `--uniform-weighting` restores the flat scoring.
 3. **Skip fragments that carry no distinguishing structure** — those whose mean
-   node-kind weight is below `--min-distinctiveness` (1.4). A fragment built only
+   node-kind weight is below `--min-distinctiveness` (1.55). A fragment built only
    from constructs every other fragment also uses matches anything of its size,
    which is how four unrelated memberwise initialisers scored 90%. The floor is
    ignored when it could not mean anything: under `--uniform-weighting`, or on an

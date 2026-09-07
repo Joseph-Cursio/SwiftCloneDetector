@@ -65,7 +65,7 @@ public struct NearMissFinder {
         minDistinctIdentifiers: Int = 0,
         minLines: Int = 2,
         useRarityWeighting: Bool = true,
-        minDistinctiveness: Double = 1.4
+        minDistinctiveness: Double = 1.55
     ) {
         self.minMass = minMass
         self.similarityThreshold = similarityThreshold

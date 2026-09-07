@@ -273,16 +273,14 @@ output and two from CPD's, and every mode of both tools was scored against those
 verdicts. See [`../Evaluation/README.md`](../Evaluation/README.md) for the pinned
 commits and the matching rule.
 
-| run | correct | recall (12 true) | precision (13 false) |
+| run | correct | recall (15 true) | precision (17 false) |
 |---|--:|--:|--:|
-| `--type2` | 14/25 | 1 | **13** |
-| `--type3` | 11/25 | 8 | 3 |
-| `--sequence` | **18/25** | 6 | 12 |
-| `--all` | 14/25 | **12** | 2 |
-| PMD CPD, 40 tokens | 17/25 | 4 | **13** |
+| `--all` | **27/32** | 14 | 13 |
+| PMD CPD, 40 tokens | 17/25 | 4 | 13 |
 
-Seven of the twenty-five cases come from Alamofire, Moya and IceCubesApp, so the
-picture is not one author's style.
+Fourteen of the thirty-two cases come from Alamofire, Moya, IceCubesApp, Nimble,
+GRDB, Euclid and Kingfisher, so the picture is not one author's style. The CPD
+row is over the twenty-five cases that existed when it was measured.
 
 Four things fall out, and three of them were surprises.
 
