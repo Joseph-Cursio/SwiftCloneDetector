@@ -85,6 +85,18 @@ public struct SequenceCloneFinder {
         self.minLines = minLines
     }
 
+    /// Whether a list item is an `import`, seen through the `CodeBlockItem` or
+    /// `MemberBlockItem` wrapper the list holds it in.
+    private static func isImportDeclaration(_ item: Syntax) -> Bool {
+        if let block = item.as(CodeBlockItemSyntax.self) {
+            return block.item.is(ImportDeclSyntax.self)
+        }
+        if let member = item.as(MemberBlockItemSyntax.self) {
+            return member.decl.is(ImportDeclSyntax.self)
+        }
+        return item.is(ImportDeclSyntax.self)
+    }
+
     /// Find all sequence-clone classes across the given sources, largest first
     /// and with runs subsumed by larger runs that contain them.
     public func find(in sources: [SourceInput]) -> [CloneClass] {
@@ -100,18 +112,6 @@ public struct SequenceCloneFinder {
     }
 
     // MARK: - Collect lists
-
-    /// Whether a list item is an `import`, seen through the `CodeBlockItem` or
-    /// `MemberBlockItem` wrapper the list holds it in.
-    private static func isImportDeclaration(_ item: Syntax) -> Bool {
-        if let block = item.as(CodeBlockItemSyntax.self) {
-            return block.item.is(ImportDeclSyntax.self)
-        }
-        if let member = item.as(MemberBlockItemSyntax.self) {
-            return member.decl.is(ImportDeclSyntax.self)
-        }
-        return item.is(ImportDeclSyntax.self)
-    }
 
     private func collectLists(_ node: Syntax, fileIndex: Int, into lists: inout [[Item]]) {
         if node.kind == .codeBlockItemList || node.kind == .memberBlockItemList {
