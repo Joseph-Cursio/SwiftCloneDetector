@@ -19,8 +19,9 @@ private let kDefaultSimilarity = 0.85
 private let kMinMassFloor = 1
 private let kMinDistinctFloor = 0
 private let kDefaultMinLines = 2
-// Chosen from the labelled cases: the highest floor that costs no true positive.
-private let kDefaultMinDistinctiveness = 1.4
+// Chosen from the labelled cases, scored through `--all` rather than the near-miss
+// pass alone, and checked against seven cases from repositories it was not tuned on.
+private let kDefaultMinDistinctiveness = 1.55
 private let kMinLinesFloor = 1
 let kSimilarityRange = 0.0...1.0
 let kMinimumProjectRoots = 2
