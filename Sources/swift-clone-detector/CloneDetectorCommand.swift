@@ -19,6 +19,8 @@ private let kDefaultSimilarity = 0.85
 private let kMinMassFloor = 1
 private let kMinDistinctFloor = 0
 private let kDefaultMinLines = 2
+// Chosen from the labelled cases: the highest floor that costs no true positive.
+private let kDefaultMinDistinctiveness = 1.4
 private let kMinLinesFloor = 1
 let kSimilarityRange = 0.0...1.0
 let kMinimumProjectRoots = 2
@@ -101,6 +103,15 @@ struct CloneDetectorCommand: ParsableCommand {
         )
     )
     var uniformWeighting = false
+
+    @Option(
+        name: .customLong("min-distinctiveness"),
+        help: ArgumentHelp(
+            "Skip near-miss fragments whose mean node-kind weight is below this (0 = off). "
+                + "1.0 means the fragment uses only constructs every other fragment also uses."
+        )
+    )
+    var minDistinctiveness = kDefaultMinDistinctiveness
 
     @Option(name: .customLong("similarity"), help: "Near-miss similarity threshold in [0, 1].")
     var similarity = kDefaultSimilarity

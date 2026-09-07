@@ -48,6 +48,9 @@ public struct NearMissFinder {
     /// Weight node kinds by how rare they are across this run's fragments, so a
     /// kind every fragment carries stops deciding whether two are copies.
     public let useRarityWeighting: Bool
+    /// Least mean node-kind weight a fragment may carry and still be compared.
+    /// 0 disables it. See ``FragmentScoring/distinctiveness(_:)``.
+    public let minDistinctiveness: Double
 
     // Type-3 distinguishes structure, not token text, so signatures normalize
     // identifiers/literals away — the same basis the Type-2 pass uses.
@@ -61,13 +64,15 @@ public struct NearMissFinder {
         similarityThreshold: Double = 0.85,
         minDistinctIdentifiers: Int = 0,
         minLines: Int = 2,
-        useRarityWeighting: Bool = true
+        useRarityWeighting: Bool = true,
+        minDistinctiveness: Double = 1.4
     ) {
         self.minMass = minMass
         self.similarityThreshold = similarityThreshold
         self.minDistinctIdentifiers = minDistinctIdentifiers
         self.minLines = minLines
         self.useRarityWeighting = useRarityWeighting
+        self.minDistinctiveness = minDistinctiveness
     }
 
     /// Find all Type-3 near-miss clone classes across the given sources, largest

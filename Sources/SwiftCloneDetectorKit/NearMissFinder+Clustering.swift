@@ -43,11 +43,19 @@ extension NearMissFinder {
         // t / (2 - t) of the larger, else the score can't reach the threshold.
         let sizeRatio = similarityThreshold / (Self.diceOverlapFactor - similarityThreshold)
 
+        // A fragment with no distinguishing structure matches anything of its
+        // size; comparing it says nothing either way.
+        let floorApplies = minDistinctiveness > 0 && scoring.rarityIsMeaningful
+        let carriesStructure = { (index: Int) in
+            !floorApplies || scoring.distinctiveness(index) >= self.minDistinctiveness
+        }
+
         for indices in byKind.values where indices.count >= Self.minimumClusterSize {
             for outer in 0..<indices.count {
                 for inner in (outer + 1)..<indices.count {
                     let lhsIndex = indices[outer]
                     let rhsIndex = indices[inner]
+                    guard carriesStructure(lhsIndex), carriesStructure(rhsIndex) else { continue }
                     let left = fragments[lhsIndex]
                     let right = fragments[rhsIndex]
 
