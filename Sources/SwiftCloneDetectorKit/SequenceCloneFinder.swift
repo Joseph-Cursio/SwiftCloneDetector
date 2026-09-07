@@ -27,6 +27,9 @@ public struct SequenceCloneFinder {
         let blindHash: UInt64
         let startOffset: Int
         let endOffset: Int
+        /// Whether this item is an `import` declaration. A run of them matches
+        /// every other file's imports and is never duplication anyone removes.
+        let isImport: Bool
     }
 
     // A start position into a list's item array.
@@ -98,6 +101,18 @@ public struct SequenceCloneFinder {
 
     // MARK: - Collect lists
 
+    /// Whether a list item is an `import`, seen through the `CodeBlockItem` or
+    /// `MemberBlockItem` wrapper the list holds it in.
+    private static func isImportDeclaration(_ item: Syntax) -> Bool {
+        if let block = item.as(CodeBlockItemSyntax.self) {
+            return block.item.is(ImportDeclSyntax.self)
+        }
+        if let member = item.as(MemberBlockItemSyntax.self) {
+            return member.decl.is(ImportDeclSyntax.self)
+        }
+        return item.is(ImportDeclSyntax.self)
+    }
+
     private func collectLists(_ node: Syntax, fileIndex: Int, into lists: inout [[Item]]) {
         if node.kind == .codeBlockItemList || node.kind == .memberBlockItemList {
             let items = node.children(viewMode: .sourceAccurate).map { child -> Item in
@@ -108,7 +123,8 @@ public struct SequenceCloneFinder {
                     mass: digest.mass,
                     blindHash: digest.hash,
                     startOffset: child.positionAfterSkippingLeadingTrivia.utf8Offset,
-                    endOffset: child.endPositionBeforeTrailingTrivia.utf8Offset
+                    endOffset: child.endPositionBeforeTrailingTrivia.utf8Offset,
+                    isImport: Self.isImportDeclaration(child)
                 )
             }
             if items.count >= minItems {
@@ -118,6 +134,21 @@ public struct SequenceCloneFinder {
         for child in node.children(viewMode: .sourceAccurate) {
             collectLists(child, fileIndex: fileIndex, into: &lists)
         }
+    }
+
+    /// Whether every item in this run is an `import`.
+    ///
+    /// Files that use the same modules open with the same import block, so the
+    /// run pass matches it across every one of them — 91 instances in one app,
+    /// its largest finding by volume. It is duplication in the literal sense and
+    /// there is nothing to do about it: nobody factors out an import list.
+    ///
+    /// Only an entirely-import run is dropped. A run that reaches past them into
+    /// real declarations is kept, imports and all, because that one is about the
+    /// declarations.
+    private func isAllImports(_ position: Position, _ length: Int, lists: [[Item]]) -> Bool {
+        let items = lists[position.listId]
+        return (position.index..<(position.index + length)).allSatisfy { items[$0].isImport }
     }
 
     // MARK: - Run detection
@@ -186,6 +217,7 @@ public struct SequenceCloneFinder {
 
         var classes: [RunClass] = []
         for group in bySignature.values where group.count >= Self.minimumInstances {
+            if isAllImports(group[0], length, lists: lists) { continue }
             let mass = runMass(group[0], length, lists: lists)
             guard mass >= minMass else { continue }
             if minDistinctIdentifiers > 0,

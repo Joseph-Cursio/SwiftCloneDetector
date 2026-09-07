@@ -193,4 +193,51 @@ struct SequenceCloneFinderTests {
         let classes = SequenceCloneFinder(minMass: 8, minItems: 2).find(in: [source("a.swift", text)])
         #expect(classes.isEmpty)
     }
+
+    // Files that use the same modules open with the same import block, so the run
+    // pass matched it across every one of them: 984 instances in one app, the
+    // largest single class holding 343. There is nothing to do about it.
+    @Test("a run of only imports is not a clone")
+    func ignoresImportRuns() {
+        let first = """
+        import Foundation
+        import SwiftUI
+        import Combine
+
+        struct Alpha {
+            let value = 1
+        }
+        """
+        let second = """
+        import Foundation
+        import SwiftUI
+        import Combine
+
+        enum Bravo {
+            case only
+        }
+        """
+        let finder = SequenceCloneFinder(minMass: 6, minItems: 2, minLines: 2)
+        let classes = finder.find(in: [source("a.swift", first), source("b.swift", second)])
+        #expect(classes.isEmpty)
+    }
+
+    // The gate is only for runs that are *entirely* imports. A run reaching past
+    // them into real declarations is about those declarations.
+    @Test("a run that reaches past the imports is still reported")
+    func keepsRunsThatLeaveTheImports() {
+        let shared = """
+        import Foundation
+        import SwiftUI
+
+        func configure() {
+            let label = "x"
+            print(label)
+            print(label)
+        }
+        """
+        let finder = SequenceCloneFinder(minMass: 6, minItems: 2, minLines: 2)
+        let classes = finder.find(in: [source("a.swift", shared), source("b.swift", shared)])
+        #expect(classes.isEmpty == false)
+    }
 }
