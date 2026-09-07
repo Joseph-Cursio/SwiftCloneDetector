@@ -102,7 +102,8 @@ extension CloneDetectorCommand {
                 similarityThreshold: similarity,
                 minDistinctIdentifiers: minDistinctIdentifiers,
                 minLines: minLines,
-                useRarityWeighting: !uniformWeighting
+                useRarityWeighting: !uniformWeighting,
+                minDistinctiveness: minDistinctiveness
             )
         case .sequence:
             return SequenceCloneFinder(
