@@ -122,7 +122,6 @@ extension NearMissFinder {
 
         var classes: [[Int]] = []
         for index in ordered {
-            let candidate = fragments[index]
             let home = classes.firstIndex { members in
                 members.allSatisfy { member in
                     scoring.similarity(member, index) >= similarityThreshold
