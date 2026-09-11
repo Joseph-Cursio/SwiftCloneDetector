@@ -72,11 +72,12 @@ struct KindWeights {
 
     /// A vector's weighted magnitude — the denominator half of weighted Dice.
     func magnitude(of vector: CharacteristicVector) -> Double {
-        var sum = 0.0
+        var terms: [Double] = []
+        terms.reserveCapacity(vector.counts.count)
         for (kind, count) in vector.counts {
-            sum += weight(kind) * Double(count)
+            terms.append(weight(kind) * Double(count))
         }
-        return sum
+        return Self.canonicalSum(&terms)
     }
 
     /// Weighted Sørensen–Dice: `2 · Σ w·min(a, b) / (‖a‖ + ‖b‖)`, in [0, 1].
@@ -98,12 +99,39 @@ struct KindWeights {
             ? (lhs.counts, rhs.counts)
             : (rhs.counts, lhs.counts)
 
-        var intersection = 0.0
+        var terms: [Double] = []
+        terms.reserveCapacity(smaller.count)
         for (kind, count) in smaller {
             if let otherCount = larger[kind] {
-                intersection += weight(kind) * Double(min(count, otherCount))
+                terms.append(weight(kind) * Double(min(count, otherCount)))
             }
         }
+        let intersection = Self.canonicalSum(&terms)
         return Self.diceOverlapFactor * intersection / (lhsMagnitude + rhsMagnitude)
+    }
+
+    /// Sum `terms` in an order derived from the values themselves, so the result
+    /// does not depend on the order they were produced in.
+    ///
+    /// Both sums here accumulate `Double`s while walking a `[SyntaxKind: Int]`,
+    /// and Swift reseeds dictionary hashing per process — so two runs over
+    /// identical input walk the kinds in different orders. Floating-point
+    /// addition is not associative, so the sums disagreed in the last bits: 32 of
+    /// 33 near-miss classes reported a `similarity` that drifted by up to ~3 ULP
+    /// between runs, making a JSON or SARIF report differ byte-for-byte each time
+    /// it was produced.
+    ///
+    /// Sorting the addends settles it. The *multiset* of terms is a function of
+    /// the input alone, so any order canonical in that multiset is reproducible.
+    /// Ascending is the useful choice: adding small terms first is also the more
+    /// accurate way to sum, since it defers the rounding loss of a small term
+    /// added to a large running total.
+    static func canonicalSum(_ terms: inout [Double]) -> Double {
+        terms.sort()
+        var sum = 0.0
+        for term in terms {
+            sum += term
+        }
+        return sum
     }
 }

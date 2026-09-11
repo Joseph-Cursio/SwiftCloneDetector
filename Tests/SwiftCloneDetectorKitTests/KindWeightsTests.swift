@@ -88,4 +88,39 @@ struct KindWeightsTests {
         )
         #expect(abs(weighted - lhs.similarity(to: rhs)) < 0.0001)
     }
+
+    // The drift this prevents: `magnitude` and `similarity` accumulate `Double`s
+    // while walking a `[SyntaxKind: Int]`, and Swift reseeds dictionary hashing
+    // per process, so two runs walked the kinds in different orders. Floating-
+    // point addition is not associative, so the totals disagreed in the last bits
+    // and every near-miss clone reported a `similarity` that changed between runs.
+    //
+    // Hash seeding cannot be varied inside one process, so this pins the property
+    // that fixes it rather than the symptom: the sum must not depend on the order
+    // the addends arrive in.
+    @Test("summation does not depend on the order the addends arrive in")
+    func summationIsOrderIndependent() {
+        // One dominant term and several an order below its ULP: added after it,
+        // each rounds away; added together first, they survive. Plain
+        // left-to-right summation over these yields three different totals
+        // depending on the order.
+        let terms = [1.0, 1e-16, 1e-16, 1e-16, 1e-16]
+
+        var canonical = terms
+        let expected = KindWeights.canonicalSum(&canonical)
+
+        var sawNaiveDisagreement = false
+        for _ in 0..<200 {
+            var permuted = terms.shuffled()
+            #expect(KindWeights.canonicalSum(&permuted) == expected)
+
+            if permuted.reduce(0, +) != terms.reduce(0, +) {
+                sawNaiveDisagreement = true
+            }
+        }
+
+        // Guard against the test passing vacuously on addends too well-behaved to
+        // expose the hazard: plain left-to-right summation must actually differ.
+        #expect(sawNaiveDisagreement)
+    }
 }
