@@ -71,67 +71,24 @@ struct KindWeights {
     }
 
     /// A vector's weighted magnitude — the denominator half of weighted Dice.
+    ///
+    /// A caller scoring a whole corpus should build one ``KindRanking`` over it
+    /// and read ``RankedVector/magnitude`` instead; this ranks `vector` on its own
+    /// each time, which is fine for a one-off but not inside a loop.
     func magnitude(of vector: CharacteristicVector) -> Double {
-        var terms: [Double] = []
-        terms.reserveCapacity(vector.counts.count)
-        for (kind, count) in vector.counts {
-            terms.append(weight(kind) * Double(count))
-        }
-        return Self.canonicalSum(&terms)
+        KindRanking(over: [vector]).ranked(vector, weights: self).magnitude
     }
 
-    /// Weighted Sørensen–Dice: `2 · Σ w·min(a, b) / (‖a‖ + ‖b‖)`, in [0, 1].
+    /// Weighted Sørensen–Dice between two vectors, in [0, 1].
     ///
-    /// Magnitudes are passed in because the caller computes each fragment's once
-    /// and this runs for every pair.
-    func similarity(
-        _ lhs: CharacteristicVector,
-        _ rhs: CharacteristicVector,
-        magnitude lhsMagnitude: Double,
-        _ rhsMagnitude: Double
-    ) -> Double {
-        guard lhsMagnitude > 0, rhsMagnitude > 0 else {
-            return 0
-        }
-
-        // Walk the smaller map and intersect against the larger.
-        let (smaller, larger) = lhs.counts.count <= rhs.counts.count
-            ? (lhs.counts, rhs.counts)
-            : (rhs.counts, lhs.counts)
-
-        var terms: [Double] = []
-        terms.reserveCapacity(smaller.count)
-        for (kind, count) in smaller {
-            if let otherCount = larger[kind] {
-                terms.append(weight(kind) * Double(min(count, otherCount)))
-            }
-        }
-        let intersection = Self.canonicalSum(&terms)
-        return Self.diceOverlapFactor * intersection / (lhsMagnitude + rhsMagnitude)
-    }
-
-    /// Sum `terms` in an order derived from the values themselves, so the result
-    /// does not depend on the order they were produced in.
-    ///
-    /// Both sums here accumulate `Double`s while walking a `[SyntaxKind: Int]`,
-    /// and Swift reseeds dictionary hashing per process — so two runs over
-    /// identical input walk the kinds in different orders. Floating-point
-    /// addition is not associative, so the sums disagreed in the last bits: 32 of
-    /// 33 near-miss classes reported a `similarity` that drifted by up to ~3 ULP
-    /// between runs, making a JSON or SARIF report differ byte-for-byte each time
-    /// it was produced.
-    ///
-    /// Sorting the addends settles it. The *multiset* of terms is a function of
-    /// the input alone, so any order canonical in that multiset is reproducible.
-    /// Ascending is the useful choice: adding small terms first is also the more
-    /// accurate way to sum, since it defers the rounding loss of a small term
-    /// added to a large running total.
-    static func canonicalSum(_ terms: inout [Double]) -> Double {
-        terms.sort()
-        var sum = 0.0
-        for term in terms {
-            sum += term
-        }
-        return sum
+    /// A caller comparing many pairs should rank the corpus once and call
+    /// ``RankedVector/similarity(_:_:)``, which is what this defers to; ranking
+    /// per call would repeat that work a quadratic number of times.
+    func similarity(_ lhs: CharacteristicVector, _ rhs: CharacteristicVector) -> Double {
+        let ranking = KindRanking(over: [lhs, rhs])
+        return RankedVector.similarity(
+            ranking.ranked(lhs, weights: self),
+            ranking.ranked(rhs, weights: self)
+        )
     }
 }

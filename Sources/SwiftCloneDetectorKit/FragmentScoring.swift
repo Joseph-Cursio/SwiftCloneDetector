@@ -17,9 +17,7 @@ struct FragmentScoring {
     /// would be noise — among three fragments every kind looks ubiquitous.
     private static let minimumCorpusForRarity = 30
 
-    private let weights: KindWeights
-    private let vectors: [CharacteristicVector]
-    private let magnitudes: [Double]
+    private let ranked: [RankedVector]
     private let weightsAreRarity: Bool
 
     /// Whether ``distinctiveness(_:)`` carries information for this run.
@@ -29,21 +27,22 @@ struct FragmentScoring {
     /// the whole run rather than its least distinctive part. Nor does it on an
     /// input too small to have a shape.
     var rarityIsMeaningful: Bool {
-        weightsAreRarity && vectors.count >= Self.minimumCorpusForRarity
+        weightsAreRarity && ranked.count >= Self.minimumCorpusForRarity
     }
 
     init(vectors: [CharacteristicVector], useRarityWeighting: Bool) {
         let resolved = useRarityWeighting ? KindWeights.rarity(over: vectors) : .uniform
-        self.weights = resolved
-        self.vectors = vectors
-        self.magnitudes = vectors.map(resolved.magnitude(of:))
+        // One ranking over the whole corpus, so every fragment's entries sort the
+        // same way and two of them can be intersected by merging.
+        let ranking = KindRanking(over: vectors)
+        self.ranked = vectors.map { ranking.ranked($0, weights: resolved) }
         self.weightsAreRarity = useRarityWeighting
     }
 
     /// The weighted magnitude of fragment `index` — its size in the units the
     /// similarity is measured in, which is what the size prune needs.
     func magnitude(_ index: Int) -> Double {
-        magnitudes[index]
+        ranked[index].magnitude
     }
 
     /// How much distinguishing structure fragment `index` carries, as the mean
@@ -54,19 +53,14 @@ struct FragmentScoring {
     /// against anything says nothing. Higher means it uses constructs most
     /// fragments do not.
     func distinctiveness(_ index: Int) -> Double {
-        let total = vectors[index].total
+        let total = ranked[index].total
         guard total > 0 else {
             return 0
         }
-        return magnitudes[index] / Double(total)
+        return ranked[index].magnitude / Double(total)
     }
 
     func similarity(_ lhs: Int, _ rhs: Int) -> Double {
-        weights.similarity(
-            vectors[lhs],
-            vectors[rhs],
-            magnitude: magnitudes[lhs],
-            magnitudes[rhs]
-        )
+        RankedVector.similarity(ranked[lhs], ranked[rhs])
     }
 }
