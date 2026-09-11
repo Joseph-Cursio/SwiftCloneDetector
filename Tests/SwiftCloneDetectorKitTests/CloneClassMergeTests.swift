@@ -82,4 +82,35 @@ struct CloneClassMergeTests {
         let second = cloneClass(.sequence, mass: 90, [range("c.swift", 1, 20), range("d.swift", 1, 20)])
         #expect(CloneClass.merged([first, second]).count == 2)
     }
+
+    @Test("equal-mass classes from one pass are ordered by position, not by input order")
+    func ordersEqualMassByPosition() {
+        // Same pass, same mass — only position separates them, so the merge has
+        // to fall through to the positional tie-break.
+        let early = cloneClass(.subtree, mass: 200, [range("a.swift", 10, 20), range("b.swift", 10, 20)])
+        let late = cloneClass(.subtree, mass: 200, [range("a.swift", 80, 90), range("b.swift", 80, 90)])
+
+        // Whichever order they arrive in, the earlier one is reported first.
+        let forward = CloneClass.merged([early, late])
+        let backward = CloneClass.merged([late, early])
+
+        #expect(forward.map(\.instances[0].startLine) == [10, 80])
+        #expect(backward.map(\.instances[0].startLine) == [10, 80])
+    }
+
+    @Test("two equal-mass overlapping classes resolve the same way whatever order they arrive in")
+    func subsumptionIsIndependentOfInputOrder() {
+        // `outer` contains `inner` and they are the same mass and pass, so which
+        // one survives is decided purely by which the merge visits first. Before
+        // the positional tie-break that was whichever the input happened to list
+        // first, so the *set* of reported clones depended on input order.
+        let outer = cloneClass(.subtree, mass: 200, [range("a.swift", 10, 90), range("b.swift", 10, 90)])
+        let inner = cloneClass(.subtree, mass: 200, [range("a.swift", 20, 40), range("b.swift", 20, 40)])
+
+        let forward = CloneClass.merged([outer, inner])
+        let backward = CloneClass.merged([inner, outer])
+
+        #expect(forward.count == backward.count)
+        #expect(forward.map(\.instances[0].startLine) == backward.map(\.instances[0].startLine))
+    }
 }

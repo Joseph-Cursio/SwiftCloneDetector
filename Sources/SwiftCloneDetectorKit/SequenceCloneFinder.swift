@@ -19,14 +19,11 @@ import SwiftSyntax
 /// that span a sub-list of a `CodeBlockItemList`/`MemberBlockItemList` rather
 /// than a single subtree.
 public struct SequenceCloneFinder {
-    // One element of a statement/member list.
+    // One element of a statement/member list: where it is, plus the blind hash
+    // that matches it against the same position in another list.
     private struct Item {
-        let fileIndex: Int
-        let node: Syntax
-        let mass: Int
+        let span: FragmentSpan
         let blindHash: UInt64
-        let startOffset: Int
-        let endOffset: Int
         /// Whether this item is an `import` declaration. A run of them matches
         /// every other file's imports and is never duplication anyone removes.
         let isImport: Bool
@@ -38,11 +35,10 @@ public struct SequenceCloneFinder {
         let index: Int
     }
 
-    // One occurrence of a matched run, before location conversion.
+    // One occurrence of a matched run, before location conversion. A run spans a
+    // list of siblings, so it is bounded by two nodes rather than anchored to one.
     private struct RunInstance {
-        let fileIndex: Int
-        let startOffset: Int
-        let endOffset: Int
+        let range: SourceRange
         let startNode: Syntax
         let endNode: Syntax
     }
@@ -118,12 +114,8 @@ public struct SequenceCloneFinder {
             let items = node.children(viewMode: .sourceAccurate).map { child -> Item in
                 let digest = Structure.hash(of: child, normalization: normalization)
                 return Item(
-                    fileIndex: fileIndex,
-                    node: child,
-                    mass: digest.mass,
+                    span: FragmentSpan(fileIndex: fileIndex, node: child, mass: digest.mass),
                     blindHash: digest.hash,
-                    startOffset: child.positionAfterSkippingLeadingTrivia.utf8Offset,
-                    endOffset: child.endPositionBeforeTrailingTrivia.utf8Offset,
                     isImport: Self.isImportDeclaration(child)
                 )
             }
@@ -236,7 +228,7 @@ public struct SequenceCloneFinder {
     private func runMass(_ position: Position, _ length: Int, lists: [[Item]]) -> Int {
         var total = 0
         for offset in 0..<length {
-            total += lists[position.listId][position.index + offset].mass
+            total += lists[position.listId][position.index + offset].span.mass
         }
         return total
     }
@@ -246,7 +238,7 @@ public struct SequenceCloneFinder {
         var mapping: [String: Int] = [:]
         for offset in 0..<length {
             Structure.appendSignature(
-                of: lists[position.listId][position.index + offset].node,
+                of: lists[position.listId][position.index + offset].span.node,
                 normalization: normalization,
                 into: &parts,
                 mapping: &mapping
@@ -258,7 +250,7 @@ public struct SequenceCloneFinder {
     private func runDistinctIdentifiers(_ position: Position, _ length: Int, lists: [[Item]]) -> Int {
         var seen: Set<String> = []
         for offset in 0..<length {
-            collectIdentifiers(in: lists[position.listId][position.index + offset].node, into: &seen)
+            collectIdentifiers(in: lists[position.listId][position.index + offset].span.node, into: &seen)
         }
         return seen.count
     }
@@ -269,21 +261,23 @@ public struct SequenceCloneFinder {
                 let start = lists[position.listId][position.index]
                 let end = lists[position.listId][position.index + length - 1]
                 return RunInstance(
-                    fileIndex: start.fileIndex,
-                    startOffset: start.startOffset,
-                    endOffset: end.endOffset,
-                    startNode: start.node,
-                    endNode: end.node
+                    range: SourceRange(
+                        fileIndex: start.span.fileIndex,
+                        startOffset: start.span.startOffset,
+                        endOffset: end.span.endOffset
+                    ),
+                    startNode: start.span.node,
+                    endNode: end.span.node
                 )
             }
-            .sorted { ($0.fileIndex, $0.startOffset) < ($1.fileIndex, $1.startOffset) }
+            .sorted { $0.range < $1.range }
 
         var kept: [RunInstance] = []
         var lastEnd: [Int: Int] = [:]
         for instance in sorted {
-            if let end = lastEnd[instance.fileIndex], instance.startOffset < end { continue }
+            if let end = lastEnd[instance.range.fileIndex], instance.range.startOffset < end { continue }
             kept.append(instance)
-            lastEnd[instance.fileIndex] = instance.endOffset
+            lastEnd[instance.range.fileIndex] = instance.range.endOffset
         }
         return kept
     }
@@ -295,19 +289,18 @@ public struct SequenceCloneFinder {
         sources: [SourceInput],
         converters: [SourceLocationConverter]
     ) -> [CloneClass] {
-        let ordered = runClasses.sorted { $0.mass > $1.mass }
-        var claimed: [Int: [(start: Int, end: Int)]] = [:]
+        // Largest runs first, ties broken by position so the run is reproducible.
+        let ordered = runClasses
+            .map { runClass -> (order: CloneOrder, runClass: RunClass) in
+                (CloneOrder(mass: runClass.mass, ranges: runClass.instances.map(\.range)), runClass)
+            }
+            .sorted { $0.order < $1.order }
+            .map(\.runClass)
+        var claimed = ClaimedRanges()
         var result: [CloneClass] = []
 
-        func isClaimed(_ instance: RunInstance) -> Bool {
-            guard let ranges = claimed[instance.fileIndex] else {
-                return false
-            }
-            return ranges.contains { instance.startOffset >= $0.start && instance.endOffset <= $0.end }
-        }
-
         for runClass in ordered {
-            if runClass.instances.allSatisfy(isClaimed) { continue }
+            if runClass.instances.allSatisfy({ claimed.covers($0.range) }) { continue }
             // A run's span is its first item's start to its last item's end.
             // Several short statements can share a line, so `minItems` does not
             // imply a line span the way it looks like it should.
@@ -315,21 +308,21 @@ public struct SequenceCloneFinder {
                 lineSpan(
                     from: instance.startNode.positionAfterSkippingLeadingTrivia,
                     to: instance.endNode.endPositionBeforeTrailingTrivia,
-                    in: converters[instance.fileIndex]
+                    in: converters[instance.range.fileIndex]
                 ) >= minLines
             }
             if !spansEnough { continue }
 
             for instance in runClass.instances {
-                claimed[instance.fileIndex, default: []].append((instance.startOffset, instance.endOffset))
+                claimed.claim(instance.range)
             }
 
             let instances = runClass.instances.map { instance -> CloneInstance in
-                let converter = converters[instance.fileIndex]
+                let converter = converters[instance.range.fileIndex]
                 let start = converter.location(for: instance.startNode.positionAfterSkippingLeadingTrivia)
                 let end = converter.location(for: instance.endNode.endPositionBeforeTrailingTrivia)
                 return CloneInstance(
-                    path: sources[instance.fileIndex].path,
+                    path: sources[instance.range.fileIndex].path,
                     startLine: start.line,
                     startColumn: start.column,
                     endLine: end.line,

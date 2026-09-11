@@ -11,13 +11,10 @@ import SwiftSyntax
 /// The Type-1/2 exact clone detector: structurally identical subtrees, optionally
 /// modulo renamed identifiers and literals.
 public struct CloneFinder {
-    // A significant subtree recorded during the walk.
+    // A significant subtree recorded during the walk: where it is, plus the
+    // structural hash that buckets it against its matches.
     private struct Fragment {
-        let fileIndex: Int
-        let node: Syntax
-        let mass: Int
-        let startOffset: Int
-        let endOffset: Int
+        let span: FragmentSpan
         let hash: UInt64
     }
 
@@ -79,17 +76,21 @@ public struct CloneFinder {
         for bucket in buckets.values where bucket.count >= Self.minimumInstances {
             var bySignature: [String: [Fragment]] = [:]
             for fragment in bucket {
-                bySignature[signature(of: fragment.node), default: []].append(fragment)
+                bySignature[signature(of: fragment.span.node), default: []].append(fragment)
             }
             for group in bySignature.values where group.count >= Self.minimumInstances {
                 classes.append(group)
             }
         }
 
-        // Report the largest clones first and drop sub-clones already covered
-        // by a larger reported clone.
-        classes.sort { $0[0].mass > $1[0].mass }
-        return subsume(classes, sources: sources, converters: converters)
+        // Report the largest clones first and drop sub-clones already covered by
+        // a larger reported clone. Every member of a class is structurally
+        // identical, so any one of them carries the class's mass.
+        let ordered = classes
+            .map { (order: CloneOrder(mass: $0[0].span.mass, spans: $0.map(\.span)), group: $0) }
+            .sorted { $0.order < $1.order }
+            .map(\.group)
+        return subsume(ordered, sources: sources, converters: converters)
     }
 
     // MARK: - Walk + hash
@@ -121,11 +122,7 @@ public struct CloneFinder {
             if mass >= minMass, AnchorKinds.all.contains(node.kind), passesIdentifierFloor(node),
                lineSpan(of: node, in: converter) >= minLines {
                 fragments.append(Fragment(
-                    fileIndex: fileIndex,
-                    node: node,
-                    mass: mass,
-                    startOffset: node.positionAfterSkippingLeadingTrivia.utf8Offset,
-                    endOffset: node.endPositionBeforeTrailingTrivia.utf8Offset,
+                    span: FragmentSpan(fileIndex: fileIndex, node: node, mass: mass),
                     hash: hasher.value
                 ))
             }
@@ -160,38 +157,25 @@ public struct CloneFinder {
         sources: [SourceInput],
         converters: [SourceLocationConverter]
     ) -> [CloneClass] {
-        var claimed: [Int: [(start: Int, end: Int)]] = [:]
+        var claimed = ClaimedRanges()
         var result: [CloneClass] = []
-
-        func isInsideClaimedRange(_ fragment: Fragment) -> Bool {
-            guard let ranges = claimed[fragment.fileIndex] else {
-                return false
-            }
-            return ranges.contains { fragment.startOffset >= $0.start && fragment.endOffset <= $0.end }
-        }
 
         for group in classes {
             // If every instance sits inside an already-reported (larger) clone,
             // this is a sub-clone — skip it.
-            if group.allSatisfy(isInsideClaimedRange) { continue }
+            if group.allSatisfy({ claimed.covers($0.span) }) { continue }
 
             for fragment in group {
-                claimed[fragment.fileIndex, default: []].append((fragment.startOffset, fragment.endOffset))
+                claimed.claim(fragment.span)
             }
 
-            let instances = group.map { fragment -> CloneInstance in
-                let converter = converters[fragment.fileIndex]
-                let start = converter.location(for: fragment.node.positionAfterSkippingLeadingTrivia)
-                let end = converter.location(for: fragment.node.endPositionBeforeTrailingTrivia)
-                return CloneInstance(
-                    path: sources[fragment.fileIndex].path,
-                    startLine: start.line,
-                    startColumn: start.column,
-                    endLine: end.line,
-                    endColumn: end.column
+            let instances = group.map { fragment in
+                fragment.span.cloneInstance(
+                    path: sources[fragment.span.fileIndex].path,
+                    converter: converters[fragment.span.fileIndex]
                 )
             }
-            result.append(CloneClass(mass: group[0].mass, instances: instances))
+            result.append(CloneClass(mass: group[0].span.mass, instances: instances))
         }
         return result
     }
