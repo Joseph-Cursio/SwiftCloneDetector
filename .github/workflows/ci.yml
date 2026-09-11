@@ -1,0 +1,85 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Build and test
+    # The package declares platforms: [.macOS(.v14)], so there is no Linux build
+    # to run. Everything here is macOS.
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show toolchain
+        run: swift --version
+
+      # Package.swift is swift-tools-version 6.2 and builds in Swift 6 language
+      # mode. A runner image whose default Xcode predates that fails inside SwiftPM
+      # with a manifest error that says nothing about the cause, so check it here
+      # and say so plainly. Pin an Xcode in "Show toolchain" above if this trips.
+      - name: Require Swift 6.2 or newer
+        run: |
+          version=$(swift --version 2>&1 | sed -n 's/.*Swift version \([0-9]*\.[0-9]*\).*/\1/p' | head -1)
+          echo "detected Swift $version"
+          major=${version%%.*}
+          minor=${version##*.}
+          if [ "$major" -lt 6 ] || { [ "$major" -eq 6 ] && [ "$minor" -lt 2 ]; }; then
+            echo "::error::Swift $version is too old; Package.swift needs 6.2 or newer"
+            exit 1
+          fi
+
+      - name: Cache SwiftPM dependencies
+        uses: actions/cache@v4
+        with:
+          path: .build
+          key: ${{ runner.os }}-spm-${{ hashFiles('Package.resolved') }}
+          restore-keys: ${{ runner.os }}-spm-
+
+      - name: Build
+        run: swift build --build-tests
+
+      - name: Test
+        run: swift test
+
+  lint:
+    name: SwiftLint
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install SwiftLint
+        run: brew install swiftlint
+
+      # --strict promotes warnings to errors. The tree is clean at the time this
+      # was added, so anything new is a regression rather than a backlog.
+      - name: Lint
+        run: swiftlint lint --strict
+
+  reproducibility:
+    name: Reproducible output
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache SwiftPM dependencies
+        uses: actions/cache@v4
+        with:
+          path: .build
+          key: ${{ runner.os }}-spm-release-${{ hashFiles('Package.resolved') }}
+          restore-keys: ${{ runner.os }}-spm-release-
+
+      # The property the unit tests structurally cannot reach: Swift reseeds
+      # dictionary hashing per process, so an order dependency is invisible
+      # within one test run and only shows when the binary runs again. Both
+      # reproducibility bugs this repo has had were that shape.
+      - name: Repeated runs must agree
+        run: RUNS=10 Scripts/check-reproducibility.sh Sources

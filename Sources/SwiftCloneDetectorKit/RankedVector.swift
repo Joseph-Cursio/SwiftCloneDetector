@@ -45,11 +45,11 @@ struct RankedVector {
         self.entries = entries
         self.total = total
 
-        var magnitude = 0.0
+        var weighted = 0.0
         for entry in entries {
-            magnitude += entry.weight * Double(entry.count)
+            weighted += entry.weight * Double(entry.count)
         }
-        self.magnitude = magnitude
+        self.magnitude = weighted
     }
 
     /// Weighted Sørensen–Dice: `2 · Σ w·min(a, b) / (‖a‖ + ‖b‖)`, in [0, 1].

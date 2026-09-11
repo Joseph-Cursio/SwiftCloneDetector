@@ -80,8 +80,12 @@ private struct MergeOrder: Comparable {
             return lhs.specificity < rhs.specificity
         }
         // A class with no instances never occurs in practice; sort it last.
-        guard let lhsEarliest = lhs.earliest else { return false }
-        guard let rhsEarliest = rhs.earliest else { return true }
+        guard let lhsEarliest = lhs.earliest else {
+            return false
+        }
+        guard let rhsEarliest = rhs.earliest else {
+            return true
+        }
         return lhsEarliest < rhsEarliest
     }
 }

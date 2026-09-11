@@ -41,12 +41,12 @@ struct KindRanking {
             .map { (name: String(describing: $0), kind: $0) }
             .sorted { $0.name < $1.name }
 
-        var ranks: [SyntaxKind: Int] = [:]
-        ranks.reserveCapacity(byName.count)
+        var assigned: [SyntaxKind: Int] = [:]
+        assigned.reserveCapacity(byName.count)
         for (rank, entry) in byName.enumerated() {
-            ranks[entry.kind] = rank
+            assigned[entry.kind] = rank
         }
-        self.ranks = ranks
+        self.ranks = assigned
     }
 
     /// `vector` flattened into rank-ordered entries under `weights`.
