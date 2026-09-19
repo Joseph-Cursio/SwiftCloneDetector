@@ -133,7 +133,7 @@ public struct CloneFinder {
 
     // Whether a fragment carries enough distinct naming to clear the floor. The
     // count walk only runs when the floor is enabled.
-    private func passesIdentifierFloor(_ node: Syntax) -> Bool {
+    func passesIdentifierFloor(_ node: Syntax) -> Bool {
         minDistinctIdentifiers == 0 || distinctIdentifierCount(in: node) >= minDistinctIdentifiers
     }
 
