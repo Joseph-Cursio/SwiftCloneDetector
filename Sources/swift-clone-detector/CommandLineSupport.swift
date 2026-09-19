@@ -16,7 +16,7 @@ func projectRoots(consumers: [String], shared: [String]) -> [ProjectRoot] {
         + shared.map { ProjectRoot(name: projectName(for: $0), path: $0, isShared: true) }
 }
 
-private func projectName(for path: String) -> String {
+func projectName(for path: String) -> String {
     let components = path.split(separator: "/", omittingEmptySubsequences: true)
     return components.last.map(String.init) ?? path
 }
@@ -27,7 +27,7 @@ private func projectName(for path: String) -> String {
 // other packages — not duplication the user wrote.
 private let kExcludedDirectoryNames: Set<String> = [".swiftpm", "DerivedData", ".git"]
 
-private func isInBuildArtifact(_ relativePath: String) -> Bool {
+func isInBuildArtifact(_ relativePath: String) -> Bool {
     relativePath.split(separator: "/").contains { component in
         component.hasPrefix(".build") || kExcludedDirectoryNames.contains(String(component))
     }
@@ -36,7 +36,7 @@ private func isInBuildArtifact(_ relativePath: String) -> Bool {
 // A file is excluded when any `--exclude` glob matches its full path or its bare
 // file name. `fnmatch` runs without FNM_PATHNAME, so `*` spans directories —
 // `*Tests.swift` and `*/Generated/*` both work.
-private func isExcluded(_ path: String, patterns: [String]) -> Bool {
+func isExcluded(_ path: String, patterns: [String]) -> Bool {
     guard !patterns.isEmpty else {
         return false
     }
