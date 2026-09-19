@@ -38,7 +38,7 @@ private func encodeToString(_ value: some Encodable) -> String {
 
 // MARK: - Shared helpers
 
-private func lineSpan(of cloneClass: CloneClass) -> Int {
+func lineSpan(of cloneClass: CloneClass) -> Int {
     let first = cloneClass.instances[0]
     return first.endLine - first.startLine + 1
 }
