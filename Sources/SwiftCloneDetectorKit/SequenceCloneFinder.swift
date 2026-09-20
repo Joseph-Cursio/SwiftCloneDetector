@@ -83,7 +83,7 @@ public struct SequenceCloneFinder {
 
     /// Whether a list item is an `import`, seen through the `CodeBlockItem` or
     /// `MemberBlockItem` wrapper the list holds it in.
-    private static func isImportDeclaration(_ item: Syntax) -> Bool {
+    static func isImportDeclaration(_ item: Syntax) -> Bool {
         if let block = item.as(CodeBlockItemSyntax.self) {
             return block.item.is(ImportDeclSyntax.self)
         }
