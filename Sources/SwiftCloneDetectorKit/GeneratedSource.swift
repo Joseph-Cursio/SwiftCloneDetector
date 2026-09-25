@@ -70,7 +70,7 @@ public enum GeneratedSource {
 
     /// Lines a header may contain before the code starts: line and block
     /// comments, a continuation line of a block comment, and a shebang.
-    private static func isCommentOrShebang(_ line: Substring) -> Bool {
+    static func isCommentOrShebang(_ line: Substring) -> Bool {
         line.hasPrefix("//") || line.hasPrefix("/*") || line.hasPrefix("*") || line.hasPrefix("#!")
     }
 }

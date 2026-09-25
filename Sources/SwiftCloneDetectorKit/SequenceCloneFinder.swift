@@ -21,7 +21,7 @@ import SwiftSyntax
 public struct SequenceCloneFinder {
     // One element of a statement/member list: where it is, plus the blind hash
     // that matches it against the same position in another list.
-    private struct Item {
+    struct Item {
         let span: FragmentSpan
         let blindHash: UInt64
         /// Whether this item is an `import` declaration. A run of them matches
@@ -30,7 +30,7 @@ public struct SequenceCloneFinder {
     }
 
     // A start position into a list's item array.
-    private struct Position {
+    struct Position {
         let listId: Int
         let index: Int
     }
@@ -138,7 +138,7 @@ public struct SequenceCloneFinder {
     /// Only an entirely-import run is dropped. A run that reaches past them into
     /// real declarations is kept, imports and all, because that one is about the
     /// declarations.
-    private func isAllImports(_ position: Position, _ length: Int, lists: [[Item]]) -> Bool {
+    func isAllImports(_ position: Position, _ length: Int, lists: [[Item]]) -> Bool {
         let items = lists[position.listId]
         return (position.index..<(position.index + length)).allSatisfy { items[$0].isImport }
     }
@@ -190,7 +190,7 @@ public struct SequenceCloneFinder {
 
     // A group is left-maximal unless every member shares the same preceding
     // item — in which case the run starting one item earlier already covers it.
-    private func isLeftMaximal(_ positions: [Position], lists: [[Item]]) -> Bool {
+    func isLeftMaximal(_ positions: [Position], lists: [[Item]]) -> Bool {
         guard positions.allSatisfy({ $0.index > 0 }) else {
             return true
         }

@@ -43,7 +43,7 @@ func lineSpan(of cloneClass: CloneClass) -> Int {
     return first.endLine - first.startLine + 1
 }
 
-private func duplicatedLineCount(_ classes: [CloneClass]) -> Int {
+func duplicatedLineCount(_ classes: [CloneClass]) -> Int {
     var total = 0
     for cloneClass in classes {
         total += lineSpan(of: cloneClass) * (cloneClass.instances.count - 1)
