@@ -18,12 +18,14 @@ import SwiftSyntax
 /// removed, or changed statements, clustered by characteristic-vector similarity.
 public struct NearMissFinder {
     // A significant subtree recorded during the walk: where it is, plus the
-    // characteristic vector it is clustered by and the signature that excludes
-    // exact copies.
+    // characteristic vector it is clustered by, the signature that excludes
+    // exact copies, and the names the identifier-overlap gate compares.
     struct Fragment {
         let span: FragmentSpan
         let vector: CharacteristicVector
         let signature: String
+        /// Distinct identifiers in the fragment; empty when the gate is off.
+        let identifiers: Set<String>
     }
 
     // A near-miss cluster needs at least this many members.
@@ -50,6 +52,11 @@ public struct NearMissFinder {
     /// Least mean node-kind weight a fragment may carry and still be compared.
     /// 0 disables it. See ``FragmentScoring/distinctiveness(_:)``.
     public let minDistinctiveness: Double
+    /// Least share of distinct identifiers, in [0, 1], two fragments must have in
+    /// common to be near copies of each other. The node-kind vector is blind to
+    /// names, so without it two unrelated models built from the same constructs
+    /// cluster. 0 disables it. See `identifierOverlap(_:_:)`.
+    public let minIdentifierOverlap: Double
 
     // Type-3 distinguishes structure, not token text, so signatures normalize
     // identifiers/literals away — the same basis the Type-2 pass uses.
@@ -57,14 +64,16 @@ public struct NearMissFinder {
 
     /// Create a finder. `minMass` is the smallest subtree (in AST nodes) worth
     /// reporting; `similarityThreshold` is the Sørensen–Dice cutoff in [0, 1];
-    /// `minDistinctIdentifiers` is the distinct-naming floor (0 = off).
+    /// `minDistinctIdentifiers` is the distinct-naming floor (0 = off);
+    /// `minIdentifierOverlap` is the shared-naming gate (0 = off).
     public init(
         minMass: Int = 30,
         similarityThreshold: Double = 0.85,
         minDistinctIdentifiers: Int = 0,
         minLines: Int = 2,
         useRarityWeighting: Bool = true,
-        minDistinctiveness: Double = 1.55
+        minDistinctiveness: Double = 1.55,
+        minIdentifierOverlap: Double = 0.25
     ) {
         self.minMass = minMass
         self.similarityThreshold = similarityThreshold
@@ -72,6 +81,7 @@ public struct NearMissFinder {
         self.minLines = minLines
         self.useRarityWeighting = useRarityWeighting
         self.minDistinctiveness = minDistinctiveness
+        self.minIdentifierOverlap = minIdentifierOverlap
     }
 
     /// Find all Type-3 near-miss clone classes across the given sources, largest
@@ -93,7 +103,10 @@ public struct NearMissFinder {
             vectors: fragments.map(\.vector),
             useRarityWeighting: useRarityWeighting
         )
-        let clusters = cluster(fragments, scoring: scoring)
+        let naming = minIdentifierOverlap > 0
+            ? IdentifierWeights.rarity(over: parsed.map { Syntax($0.tree) })
+            : .uniform
+        let clusters = cluster(fragments, scoring: scoring, naming: naming)
         return report(
             clusters,
             fragments: fragments,
@@ -131,10 +144,15 @@ public struct NearMissFinder {
             if mass >= minMass, AnchorKinds.all.contains(node.kind),
                minDistinctIdentifiers == 0 || distinctIdentifierCount(in: node) >= minDistinctIdentifiers,
                lineSpan(of: node, in: converter) >= minLines {
+                var identifiers: Set<String> = []
+                if minIdentifierOverlap > 0 {
+                    collectIdentifiers(in: node, into: &identifiers)
+                }
                 fragments.append(Fragment(
                     span: FragmentSpan(fileIndex: fileIndex, node: node, mass: mass),
                     vector: vector,
-                    signature: signature(of: node)
+                    signature: signature(of: node),
+                    identifiers: identifiers
                 ))
             }
             return (vector, mass)

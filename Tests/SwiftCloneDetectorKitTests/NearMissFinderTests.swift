@@ -64,6 +64,36 @@ struct NearMissFinderTests {
     }
     """
 
+    // Two unrelated models built the same way: stored properties and a memberwise
+    // init. The node-kind vector sees one shape; only the names say they are not
+    // copies of each other.
+    private let invoice = """
+    struct Invoice {
+        let number: String
+        let amount: Double
+        let dueDate: Date
+        let customer: String
+        init(number: String, amount: Double, dueDate: Date, customer: String) {
+            self.number = number
+            self.amount = amount
+            self.dueDate = dueDate
+            self.customer = customer
+        }
+    }
+    """
+    private let satellite = """
+    struct Satellite {
+        let callSign: String
+        let altitude: Float
+        let launched: Bool
+        init(callSign: String, altitude: Float, launched: Bool) {
+            self.callSign = callSign
+            self.altitude = altitude
+            self.launched = launched
+        }
+    }
+    """
+
     // Three functions in a line. `bravo` is a *blend* of `alpha` and `charlie`,
     // not their union — Dice penalises a size difference hard enough that a
     // double-length middle scores worse against each end than the ends do
@@ -207,6 +237,15 @@ struct NearMissFinderTests {
         let finder = NearMissFinder(minMass: 100, similarityThreshold: 0.75)
         let classes = finder.find(in: [source("chain.swift", chained)])
         #expect(classes.contains { $0.instances.count == 2 })
+    }
+
+    @Test("does not cluster unrelated code that only shares a shape")
+    func gatesOnSharedNaming() {
+        let inputs = [source("a.swift", invoice), source("b.swift", satellite)]
+        let ungated = NearMissFinder(minMass: 15, similarityThreshold: 0.8, minIdentifierOverlap: 0)
+        #expect(ungated.find(in: inputs).isEmpty == false)
+        let gated = NearMissFinder(minMass: 15, similarityThreshold: 0.8)
+        #expect(gated.find(in: inputs).isEmpty)
     }
 
     @Test("a tighter threshold rejects a loose match")
