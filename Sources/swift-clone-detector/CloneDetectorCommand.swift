@@ -22,6 +22,10 @@ private let kDefaultMinLines = 2
 // Chosen from the labelled cases, scored through `--all` rather than the near-miss
 // pass alone, and checked against seven cases from repositories it was not tuned on.
 private let kDefaultMinDistinctiveness = 1.55
+// Chosen from all 32 labelled cases through `--all`: 0.25 is where the memberwise
+// inits and the row parsers stop being reported, and no true case is lost until
+// 0.35. Every case was used to find that window, so none is held out against it.
+private let kDefaultMinIdentifierOverlap = 0.25
 private let kMinLinesFloor = 1
 let kSimilarityRange = 0.0...1.0
 let kMinimumProjectRoots = 2
@@ -118,6 +122,16 @@ struct CloneDetectorCommand: ParsableCommand {
     var similarity = kDefaultSimilarity
 
     @Option(
+        name: .customLong("min-identifier-overlap"),
+        help: ArgumentHelp(
+            "Share of distinct identifiers, in [0, 1], two near-miss fragments or sequence runs "
+                + "must have in common to be reported (0 = off). Structure alone matches unrelated "
+                + "code of the same shape, such as two memberwise inits."
+        )
+    )
+    var minIdentifierOverlap = kDefaultMinIdentifierOverlap
+
+    @Option(
         name: .customLong("shared"),
         help: ArgumentHelp("Mark a project root as the shared package (repeatable).", valueName: "path")
     )
@@ -206,6 +220,12 @@ struct CloneDetectorCommand: ParsableCommand {
         guard kSimilarityRange.contains(similarity) else {
             throw ValidationError(
                 "--similarity must be within \(kSimilarityRange.lowerBound)...\(kSimilarityRange.upperBound)."
+            )
+        }
+        guard kSimilarityRange.contains(minIdentifierOverlap) else {
+            throw ValidationError(
+                "--min-identifier-overlap must be within "
+                    + "\(kSimilarityRange.lowerBound)...\(kSimilarityRange.upperBound)."
             )
         }
     }
