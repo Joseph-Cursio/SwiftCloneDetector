@@ -60,13 +60,20 @@ Deckard-style **characteristic vector** instead:
 4. Cluster subtrees of the **same anchor kind** whose vectors score ≥
    `--similarity` (weighted Sørensen–Dice) via union-find. Exact copies
    (identical signature) are excluded — they belong to the Type-1/2 pass.
-5. **Drop self-overlap** — a fragment's own parent is also a fragment, and where
+5. **Require shared naming** — two fragments must also have at least
+   `--min-identifier-overlap` (0.25) of their distinct identifiers in common,
+   weighted by how rare each name is across files. The vector is blind to names,
+   so without this two unrelated models built from stored properties and a
+   memberwise init score 90% alike; copy-paste keeps most of its names even when
+   a few locals change. The check holds for every pair in a class, as the
+   similarity threshold does.
+6. **Drop self-overlap** — a fragment's own parent is also a fragment, and where
    the parent adds only a wrapper (`while`, `do`, `Task { }` around one big
    statement) the two are similar enough to cluster together. Members contained
    inside another member of the *same* cluster are discarded, keeping the
    largest. Type-1/2 needs no such step: a parent and child never share an exact
    signature.
-6. Subsume nested clusters, same as above, and report each class with its
+7. Subsume nested clusters, same as above, and report each class with its
    minimum pairwise similarity.
 
 ### The passes compose
@@ -112,6 +119,13 @@ as the exact pass — so these are reported as Type-1/2 clones (a sequence clone
 an exact/renamed duplication; only the *shape* it spans differs). `--min-mass`
 floors the run's total node count.
 
+Runs must also share naming, as near-miss fragments must: a list of one repeated
+shape — enum cases, stored properties, `static let` constants — matches itself at
+every offset under renaming, though each item names something different. Runs
+whose identifiers overlap by less than `--min-identifier-overlap` are not
+reported as copies of each other. The subtree pass is not gated: matching renamed
+copies is what it is for.
+
 `--min-mass` is the precision dial (higher = fewer, larger clones). Exit code is
 `2` when clones are found (handy for CI gating), `0` when clean, and `64`
 (`EX_USAGE`) on a usage error. Run `--help` for the full option list (the CLI is
@@ -122,6 +136,11 @@ fragments carrying fewer than `N` distinct identifier tokens. Where `--min-mass`
 filters by *size*, this filters by *unique naming* — useful against
 large-but-repetitive structure (a long `switch`, a chained builder) that clears
 the size floor while being semantically thin. Off by default (`0`).
+
+`--min-identifier-overlap F` (default `0.25`, `0` = off) is the shared-naming
+gate on the near-miss and sequence passes described above. It is a weighted
+Jaccard index over distinct identifiers: a name used in most files, such as
+`String` or `id`, counts for little; one used in a handful counts for a lot.
 
 Build directories (`.build*`, `.swiftpm`, `DerivedData`, `.git`) are always
 skipped. Use `--exclude GLOB` (repeatable) to skip your own files — generated

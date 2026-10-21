@@ -60,6 +60,16 @@ what the floor being switched off scores. It had fitted the cases it was chosen
 from and generalised nothing. 1.55 scores 6/7. Keep held-out cases when tuning
 anything here; the aggregate will not tell you.
 
+**`--min-identifier-overlap` was tuned on all 32 cases, so none is held out
+against it.** Through `--all`, 0 to 0.2 score 27/32, the same as without the
+gate; 0.25 and 0.3 score 29/32, dropping the memberwise inits and the row
+parsers; 0.35 starts losing true cases (the ordinal `Comparable` pair, then the
+Moya specs). The default, 0.25, is the low end of that window. What the window
+does not show is the gate's main effect, which is on volume: unlabelled
+look-alikes such as an enum matched against itself. At `--min-mass 60` it
+removed 9% of classes across these ten repositories, and a random sample of 30
+removals contained no real duplication that the gated report stopped showing.
+
 A set drawn only from one tool's output cannot measure that tool's recall — a
 clone it never reports is structurally absent from the set. The two CPD-sourced
 cases were added for exactly that reason, and **both are missed by `--type3` and

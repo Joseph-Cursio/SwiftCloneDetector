@@ -49,7 +49,7 @@ public struct SequenceCloneFinder {
     }
 
     // A clone class needs at least this many matching instances.
-    private static let minimumInstances = 2
+    static let minimumInstances = 2
 
     /// Which clone type to catch: `.type1` (exact) or `.type2` (renamed).
     public let normalization: Normalization
@@ -62,23 +62,32 @@ public struct SequenceCloneFinder {
     /// Minimum lines a run must span. `minItems` counts statements, and several
     /// short ones can share a line. 1 disables it.
     public let minLines: Int
+    /// Least share of distinct identifiers, in [0, 1], two runs must have in common
+    /// to be reported as copies. A list of one repeated shape — enum cases, stored
+    /// properties, `static let` constants — matches itself at every offset under
+    /// renaming, though each item names something different. 0 disables it. See
+    /// `identifierOverlap(_:_:)`.
+    public let minIdentifierOverlap: Double
 
     /// Create a finder. `minMass` floors the total run size; `minItems` is the
     /// smallest run length in statements; `minDistinctIdentifiers` is the
     /// distinct-naming floor (0 = off); `minLines` is the smallest line span
-    /// worth reporting (1 = off).
+    /// worth reporting (1 = off); `minIdentifierOverlap` is the shared-naming gate
+    /// (0 = off).
     public init(
         normalization: Normalization = .type2,
         minMass: Int = 20,
         minItems: Int = 2,
         minDistinctIdentifiers: Int = 0,
-        minLines: Int = 2
+        minLines: Int = 2,
+        minIdentifierOverlap: Double = 0.25
     ) {
         self.normalization = normalization
         self.minMass = minMass
         self.minItems = minItems
         self.minDistinctIdentifiers = minDistinctIdentifiers
         self.minLines = minLines
+        self.minIdentifierOverlap = minIdentifierOverlap
     }
 
     /// Whether a list item is an `import`, seen through the `CodeBlockItem` or
@@ -103,7 +112,10 @@ public struct SequenceCloneFinder {
             collectLists(Syntax(source.tree), fileIndex: source.index, into: &lists)
         }
 
-        let runClasses = detectRuns(in: lists)
+        let naming = minIdentifierOverlap > 0
+            ? IdentifierWeights.rarity(over: parsed.map { Syntax($0.tree) })
+            : .uniform
+        let runClasses = detectRuns(in: lists, naming: naming)
         return subsume(runClasses, sources: sources, converters: converters)
     }
 
@@ -128,24 +140,9 @@ public struct SequenceCloneFinder {
         }
     }
 
-    /// Whether every item in this run is an `import`.
-    ///
-    /// Files that use the same modules open with the same import block, so the
-    /// run pass matches it across every one of them — 91 instances in one app,
-    /// its largest finding by volume. It is duplication in the literal sense and
-    /// there is nothing to do about it: nobody factors out an import list.
-    ///
-    /// Only an entirely-import run is dropped. A run that reaches past them into
-    /// real declarations is kept, imports and all, because that one is about the
-    /// declarations.
-    func isAllImports(_ position: Position, _ length: Int, lists: [[Item]]) -> Bool {
-        let items = lists[position.listId]
-        return (position.index..<(position.index + length)).allSatisfy { items[$0].isImport }
-    }
-
     // MARK: - Run detection
 
-    private func detectRuns(in lists: [[Item]]) -> [RunClass] {
+    private func detectRuns(in lists: [[Item]], naming: IdentifierWeights) -> [RunClass] {
         var firstItemBuckets: [UInt64: [Position]] = [:]
         for (listId, items) in lists.enumerated() {
             for index in items.indices {
@@ -155,7 +152,7 @@ public struct SequenceCloneFinder {
 
         var runClasses: [RunClass] = []
         for bucket in firstItemBuckets.values where bucket.count >= Self.minimumInstances {
-            extend(bucket, length: 1, lists: lists, into: &runClasses)
+            extend(bucket, length: 1, lists: lists, naming: naming, into: &runClasses)
         }
         return runClasses
     }
@@ -163,7 +160,13 @@ public struct SequenceCloneFinder {
     // Grow a set of positions that already share `length` items, recursing into
     // each sub-group that can extend, and emitting this group when it is the
     // maximal run shared by all its members.
-    private func extend(_ positions: [Position], length: Int, lists: [[Item]], into runClasses: inout [RunClass]) {
+    private func extend(
+        _ positions: [Position],
+        length: Int,
+        lists: [[Item]],
+        naming: IdentifierWeights,
+        into runClasses: inout [RunClass]
+    ) {
         var groups: [UInt64: [Position]] = [:]
         var atEndCount = 0
         for position in positions {
@@ -176,7 +179,7 @@ public struct SequenceCloneFinder {
         }
 
         for group in groups.values where group.count >= Self.minimumInstances {
-            extend(group, length: length + 1, lists: lists, into: &runClasses)
+            extend(group, length: length + 1, lists: lists, naming: naming, into: &runClasses)
         }
 
         // Right-maximal unless every member extends, together, into one group.
@@ -185,7 +188,7 @@ public struct SequenceCloneFinder {
         guard length >= minItems, !extendsUniformly, isLeftMaximal(positions, lists: lists) else {
             return
         }
-        runClasses.append(contentsOf: emit(positions, length: length, lists: lists))
+        runClasses.append(contentsOf: emit(positions, length: length, lists: lists, naming: naming))
     }
 
     // A group is left-maximal unless every member shares the same preceding
@@ -199,9 +202,14 @@ public struct SequenceCloneFinder {
     }
 
     // Confirm a group with consistent-renaming signatures (so Type-2 reuse must
-    // match across the whole run), then apply the mass/identifier floors and
-    // drop self-overlapping instances.
-    private func emit(_ positions: [Position], length: Int, lists: [[Item]]) -> [RunClass] {
+    // match across the whole run), then apply the mass/identifier floors, split
+    // it by shared naming, and drop self-overlapping instances.
+    private func emit(
+        _ positions: [Position],
+        length: Int,
+        lists: [[Item]],
+        naming: IdentifierWeights
+    ) -> [RunClass] {
         var bySignature: [String: [Position]] = [:]
         for position in positions {
             bySignature[runSignature(position, length, lists: lists), default: []].append(position)
@@ -216,9 +224,11 @@ public struct SequenceCloneFinder {
                runDistinctIdentifiers(group[0], length, lists: lists) < minDistinctIdentifiers {
                 continue
             }
-            let instances = nonOverlappingInstances(group, length, lists: lists)
-            guard instances.count >= Self.minimumInstances else { continue }
-            classes.append(RunClass(mass: mass, instances: instances))
+            for named in namingGroups(group, length, lists: lists, naming: naming) {
+                let instances = nonOverlappingInstances(named, length, lists: lists)
+                guard instances.count >= Self.minimumInstances else { continue }
+                classes.append(RunClass(mass: mass, instances: instances))
+            }
         }
         return classes
     }

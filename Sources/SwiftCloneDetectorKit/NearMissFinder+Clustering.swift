@@ -12,7 +12,8 @@ import SwiftSyntax
 extension NearMissFinder {
     func cluster(
         _ fragments: [Fragment],
-        scoring: FragmentScoring
+        scoring: FragmentScoring,
+        naming: IdentifierWeights
     ) -> [[Int]] {
         let count = fragments.count
         var parent = Array(0..<count)
@@ -68,7 +69,8 @@ extension NearMissFinder {
                     // Exact (Type-1/2) copies belong to CloneFinder, not here.
                     if left.signature == right.signature { continue }
 
-                    if scoring.similarity(lhsIndex, rhsIndex) >= similarityThreshold {
+                    if scoring.similarity(lhsIndex, rhsIndex) >= similarityThreshold,
+                       sharesNaming(left, right, naming: naming) {
                         union(lhsIndex, rhsIndex)
                     }
                 }
@@ -81,7 +83,7 @@ extension NearMissFinder {
         }
         return components.values
             .filter { $0.count >= Self.minimumClusterSize }
-            .flatMap { refine($0, fragments: fragments, scoring: scoring) }
+            .flatMap { refine($0, fragments: fragments, scoring: scoring, naming: naming) }
     }
 
     /// Split one connected component into classes whose members are *all* near
@@ -111,7 +113,8 @@ extension NearMissFinder {
     private func refine(
         _ component: [Int],
         fragments: [Fragment],
-        scoring: FragmentScoring
+        scoring: FragmentScoring,
+        naming: IdentifierWeights
     ) -> [[Int]] {
         // Biggest first, ties broken on position so a run is reproducible — the
         // same order a report uses, applied to one fragment at a time.
@@ -125,6 +128,7 @@ extension NearMissFinder {
             let home = classes.firstIndex { members in
                 members.allSatisfy { member in
                     scoring.similarity(member, index) >= similarityThreshold
+                        && sharesNaming(fragments[member], fragments[index], naming: naming)
                 }
             }
             if let home {
@@ -134,5 +138,14 @@ extension NearMissFinder {
             }
         }
         return classes.filter { $0.count >= Self.minimumClusterSize }
+    }
+
+    /// Whether two fragments name enough of the same things to be copies, and not
+    /// just two constructs of the same shape. Checked in the candidate pass and
+    /// again in refinement, so the gate holds for every pair in a class, as the
+    /// similarity threshold does.
+    func sharesNaming(_ lhs: Fragment, _ rhs: Fragment, naming: IdentifierWeights) -> Bool {
+        minIdentifierOverlap <= 0
+            || identifierOverlap(lhs.identifiers, rhs.identifiers, weights: naming) >= minIdentifierOverlap
     }
 }

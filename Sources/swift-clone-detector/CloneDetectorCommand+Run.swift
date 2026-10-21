@@ -103,14 +103,16 @@ extension CloneDetectorCommand {
                 minDistinctIdentifiers: minDistinctIdentifiers,
                 minLines: minLines,
                 useRarityWeighting: !uniformWeighting,
-                minDistinctiveness: minDistinctiveness
+                minDistinctiveness: minDistinctiveness,
+                minIdentifierOverlap: minIdentifierOverlap
             )
         case .sequence:
             return SequenceCloneFinder(
                 normalization: normalization,
                 minMass: minMass,
                 minDistinctIdentifiers: minDistinctIdentifiers,
-                minLines: minLines
+                minLines: minLines,
+                minIdentifierOverlap: minIdentifierOverlap
             )
         }
     }

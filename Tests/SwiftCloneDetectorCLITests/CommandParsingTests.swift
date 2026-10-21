@@ -37,6 +37,7 @@ struct CommandParsingTests {
         #expect(command.minMass == 20)
         #expect(command.minDistinctIdentifiers == 0)
         #expect(command.similarity == 0.85)
+        #expect(command.minIdentifierOverlap == 0.25)
         #expect(command.format == .text)
         #expect(command.nearMiss == false)
         #expect(command.type1 == false)
@@ -59,6 +60,7 @@ struct CommandParsingTests {
             "--min-mass", "45",
             "--min-distinct-identifiers", "3",
             "--similarity", "0.7",
+            "--min-identifier-overlap", "0.5",
             "--format", "sarif",
             "--baseline", "base.json",
             "--write-baseline", "out.json",
@@ -67,6 +69,7 @@ struct CommandParsingTests {
         #expect(command.minMass == 45)
         #expect(command.minDistinctIdentifiers == 3)
         #expect(command.similarity == 0.7)
+        #expect(command.minIdentifierOverlap == 0.5)
         #expect(command.format == .sarif)
         #expect(command.baselinePath == "base.json")
         #expect(command.writeBaselinePath == "out.json")
@@ -110,6 +113,12 @@ struct CommandParsingTests {
     @Test("rejects an out-of-range similarity")
     func rejectsSimilarityRange() {
         #expect(failureMessage(["--similarity", "1.5", "Sources"])?.contains("--similarity must be within") == true)
+    }
+
+    @Test("rejects an out-of-range min-identifier-overlap")
+    func rejectsIdentifierOverlapRange() {
+        let message = failureMessage(["--min-identifier-overlap", "1.5", "Sources"])
+        #expect(message?.contains("--min-identifier-overlap must be within") == true)
     }
 
     @Test("rejects a negative min-distinct-identifiers")

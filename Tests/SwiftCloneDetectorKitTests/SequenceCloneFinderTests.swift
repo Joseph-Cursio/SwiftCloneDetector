@@ -178,6 +178,28 @@ struct SequenceCloneFinderTests {
         #expect(classes.isEmpty)
     }
 
+    // One shape repeated, each case naming something different: under renaming
+    // the first half of the list matches the second, though nothing is copied.
+    @Test("a list of one repeated shape is not matched against itself")
+    func gatesOnSharedNaming() {
+        let text = """
+        enum Planet: String {
+            case mercury = "Mercury"
+            case venus = "Venus"
+            case earth = "Earth"
+            case mars = "Mars"
+            case jupiter = "Jupiter"
+            case saturn = "Saturn"
+            case uranus = "Uranus"
+            case neptune = "Neptune"
+        }
+        """
+        let inputs = [source("a.swift", text)]
+        let ungated = SequenceCloneFinder(minMass: 10, minItems: 2, minIdentifierOverlap: 0)
+        #expect(ungated.find(in: inputs).isEmpty == false)
+        #expect(SequenceCloneFinder(minMass: 10, minItems: 2).find(in: inputs).isEmpty)
+    }
+
     @Test("unrelated functions produce no sequence clones")
     func noFalsePositives() {
         let text = """
