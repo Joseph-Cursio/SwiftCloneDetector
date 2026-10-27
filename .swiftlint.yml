@@ -47,7 +47,10 @@ opt_in_rules:
   - xct_specific_matcher
   - switch_case_on_newline
   - test_case_accessibility
-  - sorted_enum_cases
+  # sorted_enum_cases: OFF by default — the re-order destroys ordinal ranks
+  # (a Tier / SyncSessionResponse.Phase / FileOperation order); a style
+  # rule can't tell ordinal from nominal. See SwiftLint Never Autofix /
+  # sorted_enum_cases.
   - quick_discouraged_call
   - convenience_type
   - discouraged_object_literal
