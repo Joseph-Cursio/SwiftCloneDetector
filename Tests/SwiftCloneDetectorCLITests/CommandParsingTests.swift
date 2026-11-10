@@ -64,7 +64,7 @@ struct CommandParsingTests {
             "--format", "sarif",
             "--baseline", "base.json",
             "--write-baseline", "out.json",
-            "Sources", "More"
+            "Sources", "More",
         ])
         #expect(command.minMass == 45)
         #expect(command.minDistinctIdentifiers == 3)

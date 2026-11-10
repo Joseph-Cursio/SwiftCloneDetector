@@ -25,6 +25,6 @@ enum AnchorKinds {
         .forStmt,
         .whileStmt,
         .switchExpr,
-        .switchCase
+        .switchCase,
     ]
 }

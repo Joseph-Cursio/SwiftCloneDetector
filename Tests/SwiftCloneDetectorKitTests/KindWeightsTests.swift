@@ -35,7 +35,7 @@ struct KindWeightsTests {
             vector([.functionCallExpr: 3, .whileStmt: 1]),
             vector([.functionCallExpr: 3]),
             vector([.functionCallExpr: 3]),
-            vector([.functionCallExpr: 3])
+            vector([.functionCallExpr: 3]),
         ]
         let weights = KindWeights.rarity(over: corpus)
         #expect(weights.weight(.functionCallExpr) == 1.0)
@@ -62,7 +62,7 @@ struct KindWeightsTests {
     func rareAgreementOutweighsCommonAgreement() {
         let corpus = [
             vector([.functionCallExpr: 10, .whileStmt: 2]),
-            vector([.functionCallExpr: 10, .whileStmt: 2])
+            vector([.functionCallExpr: 10, .whileStmt: 2]),
         ] + Array(repeating: vector([.functionCallExpr: 10]), count: 20)
         let weights = KindWeights.rarity(over: corpus)
 

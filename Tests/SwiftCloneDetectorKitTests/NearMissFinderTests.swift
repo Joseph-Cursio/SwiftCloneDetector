@@ -107,7 +107,7 @@ struct NearMissFinderTests {
         [
             wrapped("alpha", ifChain(1, 13)),
             wrapped("bravo", ifChain(1, 7) + "\n" + switchChain(7, 13)),
-            wrapped("charlie", switchChain(1, 13))
+            wrapped("charlie", switchChain(1, 13)),
         ].joined(separator: "\n\n")
     }
 

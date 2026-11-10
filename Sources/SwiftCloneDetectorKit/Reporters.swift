@@ -64,6 +64,7 @@ private func crossKindID(_ kind: CrossProjectKind) -> String {
     switch kind {
     case .hoistCandidate:
         return "cross-project-hoist-candidate"
+
     case .duplicatedFromShared:
         return "cross-project-duplicated-from-shared"
     }
@@ -73,6 +74,7 @@ private func crossKindDescription(_ kind: CrossProjectKind) -> String {
     switch kind {
     case .hoistCandidate:
         return "Hoist candidate"
+
     case .duplicatedFromShared:
         return "Duplicated from shared"
     }
@@ -195,7 +197,7 @@ package func sarifReportCrossProject(_ clones: [CrossProjectClone]) -> String {
             name: "Duplicated from shared",
             shortDescription: SARIF.Text(text: "A consumer re-copied shared code; import it instead."),
             defaultConfiguration: SARIF.Configuration(level: kSarifLevel)
-        )
+        ),
     ]
     let findings = clones.map { clone in
         let cloneClass = clone.cloneClass
