@@ -47,8 +47,10 @@ public enum DetectionPass: String, Sendable, Codable, CaseIterable {
         switch self {
         case .subtree:
             return "exact"
+
         case .nearMiss:
             return "near-miss"
+
         case .sequence:
             return "sequence"
         }

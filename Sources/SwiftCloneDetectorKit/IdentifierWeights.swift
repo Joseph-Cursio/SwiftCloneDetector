@@ -6,6 +6,7 @@
 //  copies, for the --min-identifier-overlap gate.
 //
 
+// swiftlint:disable:next unused_import - log(_:) needs it; the analyzer attributes log to _math
 import Foundation
 import SwiftSyntax
 

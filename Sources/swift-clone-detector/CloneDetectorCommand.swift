@@ -8,7 +8,6 @@
 //
 
 import ArgumentParser
-import Foundation
 import SwiftCloneDetectorKit
 
 // Defaults and bounds, named so they are not magic numbers and can be shared

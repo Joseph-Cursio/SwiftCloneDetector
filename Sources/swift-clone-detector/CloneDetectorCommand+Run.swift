@@ -7,7 +7,6 @@
 //
 
 import ArgumentParser
-import Foundation
 import SwiftCloneDetectorKit
 
 extension CloneDetectorCommand {
@@ -96,6 +95,7 @@ extension CloneDetectorCommand {
                 minDistinctIdentifiers: minDistinctIdentifiers,
                 minLines: minLines
             )
+
         case .nearMiss:
             return NearMissFinder(
                 minMass: minMass,
@@ -106,6 +106,7 @@ extension CloneDetectorCommand {
                 minDistinctiveness: minDistinctiveness,
                 minIdentifierOverlap: minIdentifierOverlap
             )
+
         case .sequence:
             return SequenceCloneFinder(
                 normalization: normalization,
@@ -150,8 +151,10 @@ extension CloneDetectorCommand {
                 print("(\(suppressed) known clone(s) suppressed by baseline.)")
             }
             reportSkippedGenerated(skippedGenerated)
+
         case .json:
             print(jsonReport(classes, fileCount: fileCount, nearMiss: reportsNearMiss))
+
         case .sarif:
             print(sarifReport(classes, nearMiss: reportsNearMiss))
         }
@@ -171,8 +174,10 @@ extension CloneDetectorCommand {
                 print("(\(suppressed) known clone(s) suppressed by baseline.)")
             }
             reportSkippedGenerated(skippedGenerated)
+
         case .json:
             print(jsonReportCrossProject(clones, fileCount: fileCount))
+
         case .sarif:
             print(sarifReportCrossProject(clones))
         }

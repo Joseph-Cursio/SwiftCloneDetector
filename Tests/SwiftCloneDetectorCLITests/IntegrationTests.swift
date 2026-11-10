@@ -229,13 +229,13 @@ struct IntegrationTests {
         try withTree([
             "appA/File.swift": kDupOne,
             "appB/File.swift": kDupOne,
-            "lib/Lib.swift": kDupTwo
+            "lib/Lib.swift": kDupTwo,
         ]) { root in
             let result = try run([
                 "--cross-project",
                 "--shared", root.appendingPathComponent("lib").path,
                 root.appendingPathComponent("appA").path,
-                root.appendingPathComponent("appB").path
+                root.appendingPathComponent("appB").path,
             ])
             #expect(result.exit == 2)
             #expect(result.output.contains("HOIST CANDIDATES"))
@@ -262,7 +262,7 @@ struct IntegrationTests {
             "Foo.swift": kDupOne,
             "FooTests.swift": kDupOne,
             "Generated/Gen.swift": kDupTwo,
-            ".build/Vendor.swift": kDupOne
+            ".build/Vendor.swift": kDupOne,
         ]) { root in
             // Build artifacts are always skipped, with or without --exclude.
             let all = loadSwiftFiles(paths: [root.path], excluding: [])

@@ -43,7 +43,7 @@ struct IdentifierMetricsTests {
         let files = [
             "let invoice: String = number",
             "let satellite: String = callSign",
-            "let label: String = title"
+            "let label: String = title",
         ].map { Syntax(Parser.parse(source: $0)) }
         let weights = IdentifierWeights.rarity(over: files)
         #expect(weights.weight("String") < weights.weight("invoice"))

@@ -6,6 +6,7 @@
 //  copies of each other.
 //
 
+// swiftlint:disable:next unused_import - log(_:) needs it; the analyzer attributes log to _math
 import Foundation
 import SwiftSyntax
 
@@ -32,8 +33,6 @@ import SwiftSyntax
 /// a fragment built entirely from common kinds would have a weighted magnitude of
 /// zero and no honest similarity to anything, including its own exact copy.
 struct KindWeights {
-    // Sørensen-Dice weights the shared elements by two.
-    private static let diceOverlapFactor = 2.0
     // A kind present in every fragment keeps this weight rather than falling to
     // zero. See the damping note above.
     private static let ubiquitousWeight = 1.0

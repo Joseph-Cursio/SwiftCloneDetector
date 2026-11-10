@@ -50,11 +50,24 @@ jobs:
       - name: Test
         run: swift test
 
+  # .swiftlint.yml takes its rules from `parent_config: ../SwiftLintConfig/.swiftlint.yml`
+  # (github.com/Joseph-Cursio/SwiftLintConfig), so the two are checked out side by side.
   lint:
     name: SwiftLint
     runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: SwiftCloneDetector
     steps:
       - uses: actions/checkout@v4
+        with:
+          path: SwiftCloneDetector
+
+      - name: Check out the shared SwiftLint config
+        uses: actions/checkout@v4
+        with:
+          repository: Joseph-Cursio/SwiftLintConfig
+          path: SwiftLintConfig
 
       - name: Install SwiftLint
         run: brew install swiftlint

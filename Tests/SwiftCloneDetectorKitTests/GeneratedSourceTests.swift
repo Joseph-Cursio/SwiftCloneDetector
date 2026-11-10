@@ -57,7 +57,7 @@ struct GeneratedSourceTests {
             """
             // Generated using Sourcery 2.0 — https://github.com/krzysztofzablocki/Sourcery
             import Foundation
-            """
+            """,
         ]
     )
     func recognisesGenerators(header: String) {
